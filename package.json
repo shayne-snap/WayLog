@@ -1,0 +1,87 @@
+{
+  "name": "waylog",
+  "displayName": "WayLog - Save & Export AI Chat History",
+  "description": "Sync and backup AI chat history from Cursor, VS Code, Lingma, and CodeBuddy. Export conversations to Markdown and build your team's AI knowledge base.",
+  "version": "0.0.1",
+  "icon": "images/icon.png",
+  "publisher": "waylog",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "AI",
+    "Chat",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "waylog.saveHistory",
+        "title": "Save AI Chat History 💾",
+        "category": "WayLog",
+        "icon": "$(save)"
+      }
+    ],
+    "configuration": {
+      "title": "WayLog",
+      "properties": {
+        "waylog.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable WayLog extension features."
+        },
+        "waylog.autoSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic background saving of chat history."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "package:win": "vsce package --target win32-x64",
+    "package:win-arm": "vsce package --target win32-arm64",
+    "package:mac": "vsce package --target darwin-x64",
+    "package:mac-arm": "vsce package --target darwin-arm64",
+    "package:linux": "vsce package --target linux-x64",
+    "package:linux-arm": "vsce package --target linux-arm64",
+    "package:all": "npm run package:win && npm run package:win-arm && npm run package:mac && npm run package:mac-arm && npm run package:linux && npm run package:linux-arm",
+    "publish": "vsce publish",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "ai",
+    "chat history",
+    "cursor",
+    "copilot",
+    "sync",
+    "backup",
+    "lingma",
+    "tongyi",
+    "codebuddy",
+    "documentation"
+  ],
+  "author": "WayLog Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.19.27",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.3",
+    "vsce": "^2.15.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/waylog/waylog-vscode"
+  },
+  "dependencies": {
+    "@vscode/sqlite3": "^5.1.10-vscode"
+  }
+}

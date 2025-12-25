@@ -1,0 +1,38 @@
+.vscode/**
+.vscode-test/**
+src/**/*.map
+.gitignore
+**/.git/**
+**/tsconfig.json
+**/.eslintrc.json
+**/*.ts
+**/*.tsx
+**/*.js.map
+**/*.ts.map
+**/*.js
+!out/**/*.js
+**/yarn.lock
+**/package-lock.json
+**/yarn-error.log
+**/npm-debug.log
+**/coverage/**
+**/.DS_Store
+node_modules/**
+!node_modules/@vscode/**
+
+# Documentation & Misc
+docs/**
+AGENTS.md
+composer_dump.json
+composer_dump_new.json
+prompts.json
+
+
+# IDE & Tool configs
+.cursor/**
+.waylog/**
+.cursorindexingignore
+
+# Build artifacts
+*.vsix
+out/test/**

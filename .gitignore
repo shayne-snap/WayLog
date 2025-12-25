@@ -1,0 +1,21 @@
+out
+node_modules
+.vscode-test
+*.vsix
+.DS_Store
+.env
+coverage
+.nyc_output
+dist
+release
+
+# WayLog Local Data (CRITICAL)
+.waylog/
+
+# Other IDE Settings
+.cursor/
+
+# Local Logs & Dumps
+*.log
+composer_dump*.json
+prompts.json
