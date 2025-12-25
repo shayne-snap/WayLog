@@ -109,12 +109,28 @@ export async function saveHistoryCommand() {
         const normalizedCurrent = normalizePath(currentWorkspace);
 
         // Try to find matching workspace
-        const matchedWorkspace = workspaces.find(ws => {
+        let matchedWorkspace = workspaces.find(ws => {
             const normalizedWsPath = normalizePath(ws.path);
             // Check exact match or if workspace file path matches
             return normalizedWsPath === normalizedCurrent ||
                 (ws.dbPath && normalizePath(ws.dbPath) === normalizedCurrent);
         });
+
+        // Fallback: If no exact path match, try to match by folder name
+        // This handles cases where drive letters differ (C: vs c:) or other path anomalies on Windows
+        if (!matchedWorkspace) {
+            const currentBasename = path.basename(normalizedCurrent);
+            const candidates = workspaces.filter(ws => {
+                const wsBasename = path.basename(normalizePath(ws.path));
+                return wsBasename === currentBasename;
+            });
+
+            if (candidates.length > 0) {
+                // Pick the most recently modified one if multiple match
+                matchedWorkspace = candidates.sort((a, b) => b.lastModified - a.lastModified)[0];
+                Logger.info(`[Save] Fuzzy matched workspace by name '${currentBasename}': ${matchedWorkspace.path}`);
+            }
+        }
 
         if (!matchedWorkspace) {
             vscode.window.showWarningMessage(
