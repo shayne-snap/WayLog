@@ -96,7 +96,7 @@ export class AutoSaveService {
                     const normalizedRoot = path.normalize(workspaceRoot).toLowerCase();
                     const workspaceFile = vscode.workspace.workspaceFile;
 
-                    const currentWorkspace = workspaces.find(ws => {
+                    let currentWorkspace = workspaces.find(ws => {
                         const normalizedWsPath = path.normalize(ws.path).toLowerCase();
 
                         // 1. Priority: Check if it matches the current .code-workspace file
@@ -110,6 +110,22 @@ export class AutoSaveService {
                         // 2. Fallback: Exact match folder path
                         return normalizedWsPath === normalizedRoot;
                     });
+
+                    // 3. Fuzzy Fallback: Match by folder name (basename)
+                    // Solves drive letter or path format mismatch issues on Windows (e.g. C: vs c:)
+                    if (!currentWorkspace) {
+                        const currentBasename = path.basename(normalizedRoot);
+                        const candidates = workspaces.filter(ws => {
+                            const wsBasename = path.basename(path.normalize(ws.path).toLowerCase());
+                            return wsBasename === currentBasename;
+                        });
+
+                        if (candidates.length > 0) {
+                            // Pick the most recently modified one if multiple match
+                            currentWorkspace = candidates.sort((a, b) => b.lastModified - a.lastModified)[0];
+                            Logger.debug(`[AutoSave] Fuzzy matched workspace by name '${currentBasename}': ${currentWorkspace.path}`);
+                        }
+                    }
 
 
                     if (!currentWorkspace) {

@@ -227,6 +227,12 @@ async function saveSessionsToWaylog(sessions: ChatSession[]) {
                 await loadSessionContent(session, reader, workspaceDbPath);
             }
 
+            // Skip empty sessions
+            if (session.messages.length === 0) {
+                Logger.info(`[Save] Skipped empty session: ${session.title}`);
+                continue;
+            }
+
             // Check if file already exists
             const existingFile = await findExistingFile(session, historyDir);
 
