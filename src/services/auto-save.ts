@@ -200,20 +200,14 @@ export class AutoSaveService {
                     await loadSessionContent(session, reader, workspaceDbPath);
                     Logger.debug(`[AutoSave] Fetched ${session.messages.length} messages`);
 
-                    // Update title from first user message if available
-                    if (session.messages.length > 0) {
-                        const firstUserMsg = session.messages.find(m => m.role === 'user');
-                        if (firstUserMsg) {
-                            session.title = firstUserMsg.content.slice(0, 50);
-                            Logger.debug(`[AutoSave] Updated title to: ${session.title}`);
-                        }
-                    }
+                    // Previously we overrode the title here. 
+                    // Now we trust the reader's title to match UI and avoid duplicate files.
                 }
+            }
 
-                if (session.messages.length === 0) {
-                    Logger.debug(`[AutoSave] No messages after fetch, skipping`);
-                    return 'skipped';
-                }
+            if (session.messages.length === 0) {
+                Logger.debug(`[AutoSave] No messages after fetch, skipping`);
+                return 'skipped';
             }
 
             Logger.debug(`[AutoSave] Checking for existing file...`);

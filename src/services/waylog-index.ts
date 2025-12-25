@@ -27,10 +27,11 @@ export async function findExistingFile(session: ChatSession, historyDir: string)
         // Check if file exists
         try {
             await fs.access(filepath);
-            Logger.debug(`[WayLog] Found existing file: ${filename}`);
+            const stats = await fs.stat(filepath);
+            Logger.debug(`[WayLog] Found existing file: ${filename} (size: ${stats.size} bytes)`);
             return filepath;
         } catch {
-            // File doesn't exist
+            // File doesn't exist or is inaccessible
             return null;
         }
     } catch (error) {
