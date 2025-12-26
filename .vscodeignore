@@ -5,20 +5,21 @@ src/**/*.map
 **/.git/**
 **/tsconfig.json
 **/.eslintrc.json
-**/*.ts
-**/*.tsx
-**/*.js.map
-**/*.ts.map
 **/*.js
-!out/**/*.js
-**/yarn.lock
-**/package-lock.json
-**/yarn-error.log
-**/npm-debug.log
-**/coverage/**
-**/.DS_Store
+# Allow bundled output
+!dist/extension.js
+
+# Ignore source maps and source files in package
+**/*.map
+**/*.ts
+src/**
+out/**
+
+# Dependencies
+# Ignore all node_modules...
 node_modules/**
-!node_modules/@vscode/**
+# ...except @vscode/sqlite3 (Native Module) which must be present at runtime
+!node_modules/@vscode/sqlite3/**
 
 # Documentation & Misc
 docs/**

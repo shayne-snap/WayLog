@@ -123,7 +123,8 @@ export class AutoSaveService {
                         if (candidates.length > 0) {
                             // Pick the most recently modified one if multiple match
                             currentWorkspace = candidates.sort((a, b) => b.lastModified - a.lastModified)[0];
-                            Logger.debug(`[AutoSave] Fuzzy matched workspace by name '${currentBasename}': ${currentWorkspace.path}`);
+                            // Found by fuzzy match
+                            Logger.info(`[AutoSave] Fuzzy matched workspace by name '${currentBasename}': ${currentWorkspace.path}`);
                         }
                     }
 
@@ -141,7 +142,7 @@ export class AutoSaveService {
                     const dbPath = currentWorkspace.dbPath || currentWorkspace.path;
                     Logger.debug(`[AutoSave] Calling getSessions for ${reader.name} with dbPath: ${dbPath}`);
                     const sessions = await reader.getSessions(dbPath);
-                    Logger.debug(`[AutoSave] Got ${sessions.length} sessions from ${reader.name}`);
+                    Logger.info(`[AutoSave] Got ${sessions.length} sessions from ${reader.name}`);
 
                     for (const session of sessions) {
                         // Optimization removed: We should always check file system state

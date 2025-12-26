@@ -8,7 +8,7 @@ export enum LogLevel {
 
 export class Logger {
     private static _outputChannel: vscode.OutputChannel;
-    private static _level: LogLevel = LogLevel.DEBUG; // Changed to DEBUG for investigation
+    private static _level: LogLevel = LogLevel.INFO; // Default to INFO, change to DEBUG for dev
 
     public static get outputChannel(): vscode.OutputChannel {
         if (!this._outputChannel) {

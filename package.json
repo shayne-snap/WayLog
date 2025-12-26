@@ -2,7 +2,7 @@
   "name": "waylog",
   "displayName": "WayLog - Save & Export AI Chat History",
   "description": "Sync and backup AI chat history from Cursor, VS Code, Lingma, and CodeBuddy. Export conversations to Markdown and build your team's AI knowledge base.",
-  "version": "0.0.2",
+  "version": "0.0.1",
   "icon": "images/icon.png",
   "publisher": "waylog",
   "engines": {
@@ -16,7 +16,7 @@
   "activationEvents": [
     "onStartupFinished"
   ],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
@@ -43,9 +43,10 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run package-build",
+    "package-build": "node build.js --production",
+    "compile": "tsc -b",
+    "watch": "node build.js --watch",
     "package": "vsce package",
     "package:win": "vsce package --target win32-x64",
     "package:win-arm": "vsce package --target win32-arm64",
@@ -74,6 +75,7 @@
   "devDependencies": {
     "@types/node": "^20.19.27",
     "@types/vscode": "^1.85.0",
+    "esbuild": "^0.27.2",
     "typescript": "^5.3.3",
     "vsce": "^2.15.0"
   },

@@ -15,6 +15,7 @@ Stop losing valuable context when you switch IDEs or close a window. WayLog unif
 - **Background Auto-Save**: Keep your history up-to-date without manual intervention.
 - **Unified History Aggregation**: Automatically discovers and reads chat history from supported AI extensions installed on your devices.
 - **Selective Saving**: Manually select specific conversations to save using the `Save AI Chat History` command.
+- **Cross-Platform Support**: Fully compatible with macOS (Intel & Apple Silicon) and Windows (x64 & ARM64).
 
 ## 🔌 Supported AI Assistants
 

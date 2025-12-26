@@ -86,3 +86,12 @@ jobs:
               vsce publish --packagePath "$path" -p "$VSCE_PAT"
             done
           fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: waylog-*/waylog-*.vsix
+          generate_release_notes: true
+          draft: false
+          prerelease: false
