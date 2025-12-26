@@ -89,7 +89,9 @@ export class CodeBuddyReader implements ChatHistoryReader {
     }
 
     async getWorkspaces(): Promise<WorkspaceInfo[]> {
-        const workspaces: WorkspaceInfo[] = [];
+        // Use a map to store the best workspace found for each MD5 hash
+        // Key: MD5 hash, Value: WorkspaceInfo
+        const workspaceMap = new Map<string, WorkspaceInfo>();
 
         // 1. Map current VS Code workspaces
         if (vscode.workspace.workspaceFolders) {
@@ -105,19 +107,29 @@ export class CodeBuddyReader implements ChatHistoryReader {
                         // Count chats in this specific project
                         const sessions = await this.getSessions(projectHistoryPath);
 
-                        workspaces.push({
+                        const newWs: WorkspaceInfo = {
                             id: `codebuddy-${md5}`,
                             name: `CodeBuddy (${folder.name})`,
                             path: fsPath, // This matches the VS Code workspace path for AutoSync
                             dbPath: projectHistoryPath, // This points to the actual data folder
-                            lastModified: Date.now(), // approximation, or take from sessions
+                            lastModified: sessions.length > 0 ? Math.max(...sessions.map(s => s.timestamp)) : Date.now(),
                             chatCount: sessions.length,
                             source: this.name
-                        });
+                        };
+
+                        // Logic: Since CodeBuddy creates shadow folders in 'default' with 0 chats,
+                        // and real data in '{uuid}' folders. We might encounter the same MD5 multiple times.
+                        // We always want to keep the one that actually has chats.
+                        const existing = workspaceMap.get(md5);
+                        if (!existing || newWs.chatCount > existing.chatCount) {
+                            workspaceMap.set(md5, newWs);
+                        }
                     }
                 }
             }
         }
+
+        const workspaces: WorkspaceInfo[] = Array.from(workspaceMap.values());
 
         // 2. Also return raw discovered workspaces (existing logic)
         // These won't match AutoSync for current project, but good for listing in UI
