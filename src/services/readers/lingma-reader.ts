@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs/promises';
-import * as fsSync from 'fs';
 import { Logger } from '../../utils/logger';
 import { ChatHistoryReader, WorkspaceInfo, ChatSession, ChatMessage } from './types';
 
@@ -26,7 +25,7 @@ export class LingmaReader implements ChatHistoryReader {
             return false;
         }
 
-        const dbPath = this.getLingmaDbPath();
+        const dbPath = await this.getLingmaDbPathAsync();
         Logger.debug(`[LingmaReader] Checking DB path: ${dbPath}`);
         if (!dbPath) return false;
         try {
@@ -40,7 +39,7 @@ export class LingmaReader implements ChatHistoryReader {
     }
 
     public async getWorkspaces(): Promise<WorkspaceInfo[]> {
-        const dbPath = this.getLingmaDbPath();
+        const dbPath = await this.getLingmaDbPathAsync();
         Logger.debug(`[LingmaReader] getWorkspaces checking DB path: ${dbPath}`);
         if (!dbPath) return [];
 
@@ -70,7 +69,8 @@ export class LingmaReader implements ChatHistoryReader {
     }
 
     public async getSessions(dbPath: string): Promise<ChatSession[]> {
-        const realDbPath = this.getLingmaDbPath()!;
+        const realDbPath = await this.getLingmaDbPathAsync();
+        if (!realDbPath) return [];
 
         try {
             // Query chat_record table
@@ -168,11 +168,14 @@ export class LingmaReader implements ChatHistoryReader {
         ];
     }
 
-    private getLingmaDbPath(): string | null {
+    private async getLingmaDbPathAsync(): Promise<string | null> {
         // Return first existing path
         for (const dbPath of this.getLingmaDbPaths()) {
-            if (fsSync.existsSync(dbPath)) {
+            try {
+                await fs.access(dbPath);
                 return dbPath;
+            } catch {
+                continue;
             }
         }
         return null;

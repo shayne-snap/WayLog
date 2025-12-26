@@ -39,13 +39,19 @@ export class SyncManager {
      * Returns a list of all providers that are available (have data or are active).
      */
     public async getAvailableProviders(): Promise<ChatHistoryReader[]> {
-        const available: ChatHistoryReader[] = [];
-        for (const reader of this.readers) {
-            if (await reader.isAvailable()) {
-                available.push(reader);
+        const checks = this.readers.map(async reader => {
+            try {
+                if (await reader.isAvailable()) {
+                    return reader;
+                }
+            } catch (error) {
+                Logger.error(`[SyncManager] Failed to check availability for ${reader.name}`, error);
             }
-        }
-        return available;
+            return null;
+        });
+
+        const results = await Promise.all(checks);
+        return results.filter((r): r is ChatHistoryReader => r !== null);
     }
 
     /**
