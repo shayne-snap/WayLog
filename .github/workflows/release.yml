@@ -90,6 +90,22 @@ jobs:
             done
           fi
 
+      - name: Publish to Open VSX
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          if [ -z "$OVSX_PAT" ]; then
+            echo "OVSX_PAT secret not found. Skipping Open VSX publish."
+          else
+            echo "Publishing to Open VSX..."
+            npm install -g ovsx
+            # Publish each platform-specific package
+            for path in waylog-*/waylog-*.vsix; do
+              echo "Publishing $path to Open VSX..."
+              ovsx publish "$path" -p "$OVSX_PAT"
+            done
+          fi
+
       - name: Create GitHub Release Draft
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')

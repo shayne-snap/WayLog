@@ -27,15 +27,31 @@ export async function saveHistoryCommand() {
 
         let selectedProviderName: string;
 
-        if (providers.length === 1) {
-            selectedProviderName = providers[0].name;
+        // Calculate how many providers are "active" in the current environment
+        // A provider is "active" if:
+        // 1. It's Cursor and we're running in Cursor IDE, OR
+        // 2. It has an extensionId and that extension is installed
+        const appName = vscode.env.appName || '';
+        const activeProviders = providers.filter(p => {
+            // Cursor is only active in Cursor IDE
+            if (p.name === 'Cursor' && appName.includes('Cursor')) {
+                return true;
+            }
+            // Other providers are active if their extension is installed
+            if (p.extensionId && vscode.extensions.getExtension(p.extensionId)) {
+                return true;
+            }
+            return false;
+        });
+
+        // Only skip the picker if there's exactly one active provider
+        if (activeProviders.length === 1) {
+            selectedProviderName = activeProviders[0].name;
         } else {
             // Group and sort providers
             const nativeGroup: any[] = [];
             const activeGroup: any[] = [];
             const otherGroup: any[] = [];
-
-            const appName = vscode.env.appName || '';
 
             for (const p of providers) {
                 // Check native IDE (Cursor)

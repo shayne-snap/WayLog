@@ -2,6 +2,12 @@
 
 All notable changes to the "WayLog" extension will be documented in this file.
 
+## [0.0.2] - 2025-12-26
+
+- **Fixed**: Resolved issue where Cursor Reader was incorrectly auto-selected in VS Code when no other AI tools had chat history.
+- **Improved**: Provider selection logic now only skips the picker when there's exactly one "active" provider in the current environment.
+- **Enhanced**: Added Open VSX publishing support for broader compatibility with VS Code forks.
+
 ## [0.0.1] - 2025-12-26
 
 - **Initial Release**: Launched WayLog with full cross-platform support (macOS Intel/Apple Silicon, Windows x64/ARM64).
