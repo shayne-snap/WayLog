@@ -63,7 +63,8 @@ jobs:
           name: waylog-${{ matrix.target }}
           path: "*.vsix"
 
-  publish:
+  publish-vscode:
+    name: Publish to VS Code Marketplace
     needs: build
     runs-on: ubuntu-latest
     if: success() && startsWith(github.ref, 'refs/tags/')
@@ -74,21 +75,28 @@ jobs:
       - name: Install VSCE
         run: npm install -g @vscode/vsce
 
-      - name: Publish Extension
+      - name: Publish to VS Code Marketplace
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        # We assume the person who runs this has set VSCE_PAT secret in GitHub
         run: |
           if [ -z "$VSCE_PAT" ]; then
-            echo "VSCE_PAT secret not found. Skipping publish."
+            echo "VSCE_PAT secret not found. Skipping VS Code Marketplace publish."
           else
-            echo "Publishing extensions..."
-            # Find all VSIX files and publish them
+            echo "Publishing to VS Code Marketplace..."
             for path in waylog-*/waylog-*.vsix; do
               echo "Publishing $path..."
               vsce publish --packagePath "$path" -p "$VSCE_PAT"
             done
           fi
+
+  publish-openvsx:
+    name: Publish to Open VSX
+    needs: build
+    runs-on: ubuntu-latest
+    if: success() && startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
 
       - name: Publish to Open VSX
         env:
@@ -99,12 +107,20 @@ jobs:
           else
             echo "Publishing to Open VSX..."
             npm install -g ovsx
-            # Publish each platform-specific package
             for path in waylog-*/waylog-*.vsix; do
               echo "Publishing $path to Open VSX..."
               ovsx publish "$path" -p "$OVSX_PAT"
             done
           fi
+
+  create-release:
+    name: Create GitHub Release Draft
+    needs: build
+    runs-on: ubuntu-latest
+    if: success() && startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
 
       - name: Create GitHub Release Draft
         uses: softprops/action-gh-release@v1
