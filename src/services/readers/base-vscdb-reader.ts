@@ -63,26 +63,37 @@ export abstract class BaseVscdbReader implements ChatHistoryReader {
     abstract getSessions(dbPath: string): Promise<ChatSession[]>;
 
     protected async runSqliteQuery(dbPath: string, query: string): Promise<any[]> {
+        let db: any = null;
         try {
-            const { execFile } = require('child_process');
-            const { promisify } = require('util');
-            const execFileAsync = promisify(execFile);
+            const sqlite3 = require('@vscode/sqlite3');
+            const Database = sqlite3.Database;
 
-            // maxBuffer: 100MB (default is 1MB, which might be too small for large JSON outputs)
-            // But for simple counts it's fine. For fetching all chat history, it might be large.
-            // If the output is huge (2GB+), even CLI -json -> string -> JSON.parse will crash Node.js process (string length limits).
-            // However, we are typically querying specific keys or rows. The single value for 'composer.composerData' might be large?
-            // If composerData is 2GB, we are in trouble regardless. But usually the DB is 2GB because of many entries, not one single row being 2GB.
+            // Open database in read-only mode
+            db = await new Promise<any>((resolve, reject) => {
+                const database = new Database(dbPath, sqlite3.OPEN_READONLY, (err: Error) => {
+                    if (err) reject(err);
+                    else resolve(database);
+                });
+            });
 
-            const { stdout } = await execFileAsync('/usr/bin/sqlite3', ['-json', dbPath, query], { maxBuffer: 1024 * 1024 * 50 });
-            if (!stdout || !stdout.trim()) return [];
-            return JSON.parse(stdout);
+            // Execute query
+            const results = await new Promise<any[]>((resolve, reject) => {
+                db.all(query, [], (err: Error, rows: any[]) => {
+                    if (err) reject(err);
+                    else resolve(rows || []);
+                });
+            });
+
+            return results;
         } catch (error: any) {
-            // Ignore "Error: Command failed" if it's just empty result or similar expected sqlite issues
-            if (error?.code !== 1) { // code 1 is general error
-                Logger.info(`[BaseVscdbReader] SQLite query failed: ${error.message}`);
-            }
+            Logger.error(`[BaseVscdbReader] SQLite query failed: ${error.message}`);
             return [];
+        } finally {
+            if (db) {
+                await new Promise<void>((resolve) => {
+                    db.close(() => resolve());
+                });
+            }
         }
     }
 

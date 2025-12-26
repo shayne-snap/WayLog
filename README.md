@@ -1,6 +1,8 @@
 # WayLog - Save & Export AI Chat History
 
- 
+[![GitHub](https://img.shields.io/badge/GitHub-shayne--snap%2FWayLog-blue?logo=github)](https://github.com/shayne-snap/WayLog)
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/waylog.waylog)](https://marketplace.visualstudio.com/items?itemName=waylog.waylog)
+[![License](https://img.shields.io/github/license/shayne-snap/WayLog)](https://github.com/shayne-snap/WayLog/blob/main/LICENSE)
 
 WayLog is a **local-first extension** that turns your fleeting AI conversations into a permanent, git-friendly knowledge base.
 
@@ -45,6 +47,22 @@ WayLog operates with a strict **local-first** policy. It intelligently interface
 - We **do not** modify or delete your original chat records.
 - All data processing happens entirely on your devices.
 - Your chat history is saved directly to your workspace's `.waylog` folder, giving you full control over your data.
+
+## 🤝 Contributing
+
+We welcome contributions from the community! Whether you want to:
+- Report a bug
+- Suggest a new feature
+- Add support for a new AI assistant
+- Improve documentation
+
+Please check out our [Contributing Guide](CONTRIBUTING.md) to get started.
+
+## 📄 License
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2025 WayLog Contributors
 
 ---
 

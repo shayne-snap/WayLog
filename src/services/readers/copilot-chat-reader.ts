@@ -1,27 +1,74 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { BaseVscdbReader } from './base-vscdb-reader';
-import { ChatSession, ChatMessage } from './types';
+import { ChatSession, ChatMessage, WorkspaceInfo } from './types';
 import { Logger } from '../../utils/logger';
+import { PlatformPaths } from '../../utils/platform-paths';
 
 export class CopilotChatReader extends BaseVscdbReader {
     public readonly name = 'Copilot Chat';
     public readonly description = '';
     public readonly extensionId = 'github.copilot-chat';
 
-    // We override storageBaseDir to dynamically handle both Insiders and Stable
+    // Override to return default storage location (Stable version)
     get storageBaseDir(): string {
-        const appData = process.platform === 'darwin'
-            ? path.join(process.env.HOME || '', 'Library/Application Support')
-            : process.env.APPDATA || '';
+        return PlatformPaths.getVSCodeWorkspaceStoragePaths()[0];
+    }
 
-        // We'll primarily target Insiders as it's what the user is using, 
-        // but a more robust implementation would check both.
-        return path.join(appData, 'Code - Insiders/User/workspaceStorage');
+    // Return all possible storage directories to check (Stable + Insiders)
+    private getStorageDirs(): string[] {
+        return PlatformPaths.getVSCodeWorkspaceStoragePaths();
     }
 
     get chatDataKey(): string {
         return 'chat.ChatSessionStore.index';
+    }
+
+    // Override getWorkspaces to check both Stable and Insiders
+    async getWorkspaces(): Promise<WorkspaceInfo[]> {
+        const allWorkspaces: WorkspaceInfo[] = [];
+
+        for (const storageDir of this.getStorageDirs()) {
+            try {
+                await fs.access(storageDir);
+                const hasFolders = await fs.readdir(storageDir);
+
+                for (const folder of hasFolders) {
+                    const workspacePath = path.join(storageDir, folder);
+                    const dbPath = path.join(workspacePath, 'state.vscdb');
+
+                    try {
+                        await fs.access(dbPath);
+                        const stats = await fs.stat(dbPath);
+
+                        // Try to resolve workspace name and path from workspace.json
+                        const details = await this.resolveWorkspaceDetails(workspacePath);
+
+                        // Check if there's actually chat data in this DB
+                        const chatCount = await this.countChatSessions(dbPath);
+
+                        if (chatCount > 0) {
+                            allWorkspaces.push({
+                                id: folder,
+                                name: details.name || `Workspace ${folder.slice(0, 6)}`,
+                                path: details.path || dbPath,
+                                dbPath: dbPath,
+                                lastModified: stats.mtimeMs,
+                                chatCount: chatCount,
+                                source: this.name
+                            });
+                        }
+                    } catch {
+                        continue; // Skip folders without state.vscdb
+                    }
+                }
+            } catch {
+                // Storage directory doesn't exist, skip it
+                continue;
+            }
+        }
+
+        return allWorkspaces.sort((a, b) => b.lastModified - a.lastModified);
     }
 
     async getSessions(dbPath: string): Promise<ChatSession[]> {
