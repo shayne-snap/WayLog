@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches-ignore:
+      - main
+  pull_request:
+    branches-ignore:
+      - main
+
+jobs:
+  lint-and-compile:
+    name: Lint and Compile Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check TypeScript compilation
+        run: npm run compile
+
+      - name: Check for TypeScript errors
+        run: npx tsc --noEmit
+
+      - name: Verify package.json
+        run: |
+          echo "Checking package.json validity..."
+          node -e "require('./package.json')"
+          echo "✓ package.json is valid"
+
+  code-quality:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for console.log statements
+        run: |
+          if grep -r "console\.log" src/ --include="*.ts" --exclude-dir=node_modules; then
+            echo "⚠️  Warning: Found console.log statements in source code"
+            echo "Consider using Logger instead"
+            exit 0
+          else
+            echo "✓ No console.log statements found"
+          fi
+
+      - name: Check for TODO comments
+        run: |
+          if grep -r "TODO" src/ --include="*.ts" --exclude-dir=node_modules; then
+            echo "ℹ️  Info: Found TODO comments (this is just informational)"
+            exit 0
+          else
+            echo "✓ No TODO comments found"
+          fi

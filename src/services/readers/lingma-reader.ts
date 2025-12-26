@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs/promises';
+import * as fsSync from 'fs';
 import { Logger } from '../../utils/logger';
 import { ChatHistoryReader, WorkspaceInfo, ChatSession, ChatMessage } from './types';
 
@@ -158,10 +159,23 @@ export class LingmaReader implements ChatHistoryReader {
         }
     }
 
-    private getLingmaDbPath(): string | null {
+    private getLingmaDbPaths(): string[] {
         const homeDir = os.homedir();
-        // Standard path for Lingma VS Code extension database
-        return path.join(homeDir, '.lingma', 'vscode', 'sharedClientCache', 'cache', 'db', 'local.db');
+        // Check both VS Code Stable and Insiders
+        return [
+            path.join(homeDir, '.lingma', 'vscode', 'sharedClientCache', 'cache', 'db', 'local.db'),
+            path.join(homeDir, '.lingma', 'vscode-insiders', 'sharedClientCache', 'cache', 'db', 'local.db')
+        ];
+    }
+
+    private getLingmaDbPath(): string | null {
+        // Return first existing path
+        for (const dbPath of this.getLingmaDbPaths()) {
+            if (fsSync.existsSync(dbPath)) {
+                return dbPath;
+            }
+        }
+        return null;
     }
 
     private async countChats(dbPath: string): Promise<number> {

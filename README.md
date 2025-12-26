@@ -4,15 +4,18 @@
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/waylog.waylog)](https://marketplace.visualstudio.com/items?itemName=waylog.waylog)
 [![License](https://img.shields.io/github/license/shayne-snap/WayLog)](https://github.com/shayne-snap/WayLog/blob/main/LICENSE)
 
-WayLog is a **local-first extension** that turns your fleeting AI conversations into a permanent, git-friendly knowledge base.
+WayLog is a **free, open-source, local-first extension** that turns your fleeting AI conversations into a permanent, git-friendly knowledge base.
 
 
 Stop losing valuable context when you switch IDEs or close a window. WayLog unifies your knowledge base from multiple coding assistants—Cursor, Copilot, Lingma, and more—in one secure place. **Never lose AI chat history.**
+
+🌟 **[Open Source on GitHub](https://github.com/shayne-snap/WayLog)** - Community-driven development, transparent and trustworthy.
 
 > ❗️ **Important Note**: All chat history is saved locally in the `.waylog` folder within your workspace.
 >
 ## ✨ Key Features
 
+- **🌟 Open Source**: Fully transparent, MIT-licensed, and community-driven. [Contribute on GitHub](https://github.com/shayne-snap/WayLog)!
 - **Local-First Architecture**: WayLog runs locally, directly accessing the SQLite databases and JSON logs on your disk. Your data is processed on your devices.
 - **Background Auto-Save**: Keep your history up-to-date without manual intervention.
 - **Unified History Aggregation**: Automatically discovers and reads chat history from supported AI extensions installed on your devices.
@@ -50,13 +53,19 @@ WayLog operates with a strict **local-first** policy. It intelligently interface
 
 ## 🤝 Contributing
 
-We welcome contributions from the community! Whether you want to:
-- Report a bug
-- Suggest a new feature
-- Add support for a new AI assistant
-- Improve documentation
+WayLog is **open source** and we welcome contributions from developers worldwide! 🌍
 
-Please check out our [Contributing Guide](CONTRIBUTING.md) to get started.
+**Repository**: [github.com/shayne-snap/WayLog](https://github.com/shayne-snap/WayLog)
+
+Whether you want to:
+- 🐛 Report a bug or request a feature
+- 🔌 Add support for a new AI assistant
+- 📝 Improve documentation
+- 💻 Contribute code improvements
+
+Please check out our [Contributing Guide](https://github.com/shayne-snap/WayLog/blob/main/CONTRIBUTING.md) to get started.
+
+**Join us in building the best AI chat history tool!** ⭐
 
 ## 📄 License
 
