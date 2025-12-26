@@ -2,35 +2,46 @@
 
 All notable changes to the "WayLog" extension will be documented in this file.
 
+## [0.0.5] - 2025-12-26
+
+### Fixed
+- **CodeBuddy on Windows**: Fixed an issue where chat history was not being detected correctly on Windows
+- **App Detection**: Improved detection logic for CodeBuddy to prioritize workspaces with actual chat history
+- **VS Code Insiders**: Added support for Alibaba Lingma when running in VS Code Insiders
+
+### Documentation
+- **Open Source**: Updated documentation to highlight open-source status and contribution guidelines
+
+
 ## [0.0.3] - 2025-12-26
 
 ### Fixed
-- **Windows Compatibility**: Fixed GitHub Copilot Chat detection on Windows by supporting both VS Code Stable and Insiders versions
-- **Path Detection**: Fixed Cline/Roo Code/Kilo Code readers to detect both VS Code Stable and Insiders installations
-- **Cross-Platform Paths**: Unified path handling using `PlatformPaths` utility for better maintainability
+- **Windows Compatibility**: Fixed GitHub Copilot Chat detection on Windows for both VS Code Stable and Insiders
+- **App Support**: Improved detection for Cline, Roo Code, and Kilo Code on VS Code Stable and Insiders
 
 ### Improved
-- **SQLite Performance**: Simplified SQLite query implementation by using `@vscode/sqlite3` on all platforms, removing system CLI dependency
-- **Code Quality**: Reduced code complexity by ~34 lines in `BaseVscdbReader`, improving maintainability
-- **Consistency**: All platforms now use the same SQLite implementation for consistent behavior
+- **Performance**: Improved database query performance and stability across all platforms
+- **Reliability**: Enhanced cross-platform compatibility for path detection
 
 ### Documentation
-- **README**: Added Contributing and License sections
-- **Open Source**: Updated LICENSE copyright to 2025 WayLog Contributors
-- **Cleanup**: Removed `.specstory` directory and added to `.gitignore`
+- **Contribution**: Added Contributing Guide and updated License information
+
 
 ## [0.0.2] - 2025-12-26
 
-- **Fixed**: Resolved issue where Cursor Reader was incorrectly auto-selected in VS Code when no other AI tools had chat history.
-- **Improved**: Provider selection logic now only skips the picker when there's exactly one "active" provider in the current environment.
-- **Enhanced**: Added Open VSX publishing support for broader compatibility with VS Code forks.
+### Fixed
+- **App Selection**: Fixed an issue where Cursor was incorrectly auto-selected in VS Code environments
+- **User Experience**: Improved the provider selection prompt to only appear when necessary
+
+### New
+- **Marketplace**: Added support for Open VSX Registry (compatible with VSCodium, etc.)
+
 
 ## [0.0.1] - 2025-12-26
 
-- **Initial Release**: Launched WayLog with full cross-platform support (macOS Intel/Apple Silicon, Windows x64/ARM64).
+- **Initial Release**: Launched WayLog with full cross-platform support (macOS & Windows)
+- **Supported Apps**: Auto-discovery for Cursor, GitHub Copilot, Alibaba Lingma, CodeBuddy, Cline, Roo Code, and more
 - **Core Features**:
-    - Auto-discovery and local reading of Cursor, Lingma, CodeBuddy, and other AI assistant histories.
-    - Background auto-save to `.waylog` folder in your workspace.
-    - Export chat history to Markdown with metadata (models, timestamps).
-- **Optimization**: Built with esbuild bundling for minimal size (~5MB compressed) and fast startup.
-- **Robustness**: Native SQLite integration for reliable data access, fuzzy path matching for Windows compatibility, and smart empty session filtering.
+    - Background auto-save to local `.waylog` folder
+    - Export chat history to Markdown with full metadata
+    - Smart session filtering and fuzzy workspace matching
