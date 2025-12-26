@@ -37,58 +37,75 @@ export class CodeBuddyReader implements ChatHistoryReader {
     public readonly name = 'Tencent CodeBuddy';
     public readonly description = '';
     public readonly extensionId = 'tencent-cloud.coding-copilot';
+    private initPromise: Promise<void> | null = null;
     private historyPaths: string[] = [];
 
     constructor() {
-        this.initializePaths();
+        // Lightweight initialization - no I/O here
     }
 
-    private initializePaths() {
-        // TODO: Verify Windows path for CodeBuddy. Currently mapped to standard AppData structure.
-        const baseDir = PlatformPaths.getCodeBuddyDataPath();
-        if (!fs.existsSync(baseDir)) {
-            Logger.debug('[CodeBuddyReader] CodeBuddy data directory not found at ' + baseDir);
-            return;
+    private async ensureInitialized(): Promise<void> {
+        if (this.historyPaths.length > 0) return;
+
+        // Return existing promise if initialization is already in progress
+        if (this.initPromise) {
+            return this.initPromise;
         }
 
-        try {
-            this.findHistoryDirs(baseDir);
-            Logger.debug(`[CodeBuddyReader] Found ${this.historyPaths.length} history directories`);
-        } catch (error) {
-            Logger.error('[CodeBuddyReader] Error scanning CodeBuddy paths', error);
-        }
+        // Start initialization
+        this.initPromise = (async () => {
+            const baseDir = PlatformPaths.getCodeBuddyDataPath();
+            try {
+                await fs.promises.access(baseDir);
+                await this.findHistoryDirsAsync(baseDir);
+                Logger.debug(`[CodeBuddyReader] Found ${this.historyPaths.length} history directories`);
+            } catch (error) {
+                // Directory doesn't exist or not accessible, just ignore
+                // We don't log error here to avoid noise for users who don't have CodeBuddy
+            }
+        })();
+
+        return this.initPromise;
     }
 
-    private findHistoryDirs(currentDir: string, depth = 0) {
+    private async findHistoryDirsAsync(currentDir: string, depth = 0) {
         if (depth > 6) return;
 
         try {
-            const files = fs.readdirSync(currentDir);
-            for (const file of files) {
-                const fullPath = path.join(currentDir, file);
-                const stat = fs.statSync(fullPath);
+            const files = await fs.promises.readdir(currentDir);
 
-                if (stat.isDirectory()) {
-                    if (file === 'history') {
-                        this.historyPaths.push(fullPath);
-                    } else {
-                        // avoid scanning huge node_modules or similar if any
-                        this.findHistoryDirs(fullPath, depth + 1);
+            // Use Promise.all to scan subdirectories in parallel
+            await Promise.all(files.map(async (file) => {
+                const fullPath = path.join(currentDir, file);
+                try {
+                    const stat = await fs.promises.stat(fullPath);
+
+                    if (stat.isDirectory()) {
+                        if (file === 'history') {
+                            this.historyPaths.push(fullPath);
+                        } else {
+                            // avoid scanning huge node_modules or similar if any
+                            await this.findHistoryDirsAsync(fullPath, depth + 1);
+                        }
                     }
-                }
-            }
+                } catch { }
+            }));
         } catch (e) { }
     }
+
+
 
     private getProjectHash(projectPath: string): string {
         return crypto.createHash('md5').update(projectPath).digest('hex');
     }
 
     async isAvailable(): Promise<boolean> {
+        await this.ensureInitialized();
         return this.historyPaths.length > 0;
     }
 
     async getWorkspaces(): Promise<WorkspaceInfo[]> {
+        await this.ensureInitialized();
         // Use a map to store the best workspace found for each MD5 hash
         // Key: MD5 hash, Value: WorkspaceInfo
         const workspaceMap = new Map<string, WorkspaceInfo>();
