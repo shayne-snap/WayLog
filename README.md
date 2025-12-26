@@ -48,6 +48,22 @@ WayLog operates with a strict **local-first** policy. It intelligently interface
 - All data processing happens entirely on your devices.
 - Your chat history is saved directly to your workspace's `.waylog` folder, giving you full control over your data.
 
+## 🤝 Contributing
+
+We welcome contributions from the community! Whether you want to:
+- Report a bug
+- Suggest a new feature
+- Add support for a new AI assistant
+- Improve documentation
+
+Please check out our [Contributing Guide](CONTRIBUTING.md) to get started.
+
+## 📄 License
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2025 WayLog Contributors
+
 ---
 
 **Enjoy coding with zero memory loss.**

@@ -34,86 +34,94 @@ export abstract class BaseClineReader implements ChatHistoryReader {
     }
 
     async isAvailable(): Promise<boolean> {
-        const baseDir = this.getGlobalStorageBase();
-        Logger.debug(`[${this.name}] Checking availability in: ${baseDir}`);
-        try {
-            const dir = path.join(baseDir, this.config.id);
-            await fs.access(dir);
-            Logger.debug(`[${this.name}] Found at: ${dir}`);
-            return true;
-        } catch {
-            Logger.debug(`[${this.name}] Not available`);
-            return false;
+        Logger.debug(`[${this.name}] Checking availability`);
+
+        // Check both Stable and Insiders versions
+        for (const baseDir of PlatformPaths.getVSCodeGlobalStoragePaths()) {
+            try {
+                const dir = path.join(baseDir, this.config.id);
+                await fs.access(dir);
+                Logger.debug(`[${this.name}] Found at: ${dir}`);
+                return true;
+            } catch {
+                continue;
+            }
         }
+
+        Logger.debug(`[${this.name}] Not available in any VS Code version`);
+        return false;
     }
 
     async getWorkspaces(): Promise<WorkspaceInfo[]> {
         const workspaces: WorkspaceInfo[] = [];
-        const baseDir = this.getGlobalStorageBase();
         Logger.debug(`[${this.name}] getWorkspaces called`);
 
-        const extensionDir = path.join(baseDir, this.config.id);
-        const tasksDir = path.join(extensionDir, 'tasks');
+        // Check both Stable and Insiders versions
+        for (const globalStorageBase of PlatformPaths.getVSCodeGlobalStoragePaths()) {
+            const extensionDir = path.join(globalStorageBase, this.config.id);
+            const tasksDir = path.join(extensionDir, 'tasks');
 
-        try {
-            await fs.access(tasksDir);
-            const taskFolders = await fs.readdir(tasksDir);
-            Logger.debug(`[${this.name}] Found ${taskFolders.length} task folders`);
+            try {
+                await fs.access(tasksDir);
+                const taskFolders = await fs.readdir(tasksDir);
+                Logger.debug(`[${this.name}] Found ${taskFolders.length} task folders in ${globalStorageBase}`);
 
-            // Group tasks by workspace
-            const workspaceMap = new Map<string, { count: number, lastModified: number, path: string }>();
+                // Group tasks by workspace
+                const workspaceMap = new Map<string, { count: number, lastModified: number, path: string }>();
 
-            for (const folder of taskFolders) {
-                const taskPath = path.join(tasksDir, folder);
-                const stats = await fs.stat(taskPath);
-                if (!stats.isDirectory()) continue;
+                for (const folder of taskFolders) {
+                    const taskPath = path.join(tasksDir, folder);
+                    const stats = await fs.stat(taskPath);
+                    if (!stats.isDirectory()) continue;
 
-                const apiHistoryFile = path.join(taskPath, 'api_conversation_history.json');
-                try {
-                    const content = await fs.readFile(apiHistoryFile, 'utf8');
-                    const history = JSON.parse(content);
+                    const apiHistoryFile = path.join(taskPath, 'api_conversation_history.json');
+                    try {
+                        const content = await fs.readFile(apiHistoryFile, 'utf8');
+                        const history = JSON.parse(content);
 
-                    // Extract workspace path from environment_details in the first message
-                    const wsPath = this.extractWorkspacePath(history);
-                    if (wsPath) {
-                        const existing = workspaceMap.get(wsPath);
-                        if (!existing || stats.mtimeMs > existing.lastModified) {
-                            workspaceMap.set(wsPath, {
-                                count: (existing?.count || 0) + 1,
-                                lastModified: Math.max(existing?.lastModified || 0, stats.mtimeMs),
-                                path: extensionDir // Store the extension dir as base
-                            });
-                        } else {
-                            existing.count++;
+                        // Extract workspace path from environment_details in the first message
+                        const wsPath = this.extractWorkspacePath(history);
+                        if (wsPath) {
+                            const existing = workspaceMap.get(wsPath);
+                            if (!existing || stats.mtimeMs > existing.lastModified) {
+                                workspaceMap.set(wsPath, {
+                                    count: (existing?.count || 0) + 1,
+                                    lastModified: Math.max(existing?.lastModified || 0, stats.mtimeMs),
+                                    path: extensionDir // Store the extension dir as base
+                                });
+                            } else {
+                                existing.count++;
+                            }
                         }
+                    } catch (e) {
+                        // If we can't read api history, we might still want to count it as "Unknown Workspace"
+                        const wsPath = 'Unknown Workspace';
+                        const existing = workspaceMap.get(wsPath);
+                        workspaceMap.set(wsPath, {
+                            count: (existing?.count || 0) + 1,
+                            lastModified: Math.max(existing?.lastModified || 0, stats.mtimeMs),
+                            path: extensionDir
+                        });
                     }
-                } catch (e) {
-                    // If we can't read api history, we might still want to count it as "Unknown Workspace"
-                    const wsPath = 'Unknown Workspace';
-                    const existing = workspaceMap.get(wsPath);
-                    workspaceMap.set(wsPath, {
-                        count: (existing?.count || 0) + 1,
-                        lastModified: Math.max(existing?.lastModified || 0, stats.mtimeMs),
-                        path: extensionDir
+                }
+
+                for (const [wsPath, info] of workspaceMap.entries()) {
+                    Logger.debug(`[${this.name}] Adding workspace: ${wsPath} (${info.count} chats)`);
+                    workspaces.push({
+                        id: `${this.config.id}:${wsPath}`,
+                        name: wsPath === 'Unknown Workspace' ? `${this.name} (Unknown)` : `${this.name}: ${path.basename(wsPath)}`,
+                        path: wsPath,  // Use real path for matching
+                        dbPath: JSON.stringify({ extensionDir: info.path, wsPath }), // Store metadata in dbPath
+                        lastModified: info.lastModified,
+                        chatCount: info.count,
+                        source: this.name
                     });
                 }
-            }
 
-            for (const [wsPath, info] of workspaceMap.entries()) {
-                Logger.debug(`[${this.name}] Adding workspace: ${wsPath} (${info.count} chats)`);
-                workspaces.push({
-                    id: `${this.config.id}:${wsPath}`,
-                    name: wsPath === 'Unknown Workspace' ? `${this.name} (Unknown)` : `${this.name}: ${path.basename(wsPath)}`,
-                    path: wsPath,  // Use real path for matching
-                    dbPath: JSON.stringify({ extensionDir: info.path, wsPath }), // Store metadata in dbPath
-                    lastModified: info.lastModified,
-                    chatCount: info.count,
-                    source: this.name
-                });
+            } catch (error) {
+                // Extension dir doesn't exist in this location, try next
+                continue;
             }
-
-        } catch (error) {
-            // Extension dir exists but no tasks folder or other error
         }
 
         Logger.debug(`[${this.name}] Total workspaces found: ${workspaces.length}`);
@@ -258,22 +266,6 @@ export abstract class BaseClineReader implements ChatHistoryReader {
             Logger.error(`[${this.name}] Failed to fetch content for session ${sessionId}`, error);
             return [];
         }
-    }
-
-    private getGlobalStorageBase(): string {
-        const appData = PlatformPaths.getAppDataPath();
-
-        // Support both Stable and Insiders
-        // Linux: ~/.config/Code/User/globalStorage
-        // Mac: ~/Library/Application Support/Code/User/globalStorage
-        // Windows: %APPDATA%/Code/User/globalStorage
-
-        // Check Insiders first
-        const insiders = path.join(appData, 'Code - Insiders', 'User', 'globalStorage');
-        // TODO: Logic to detect which one is actually active or check both could be improved
-        // For now, this mimics original logic but makes the base path cross-platform.
-
-        return insiders;
     }
 
     private extractWorkspacePath(history: any[]): string | null {

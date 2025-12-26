@@ -64,8 +64,32 @@ export class PlatformPaths {
     }
 
     /**
+     * Get all possible VS Code workspace storage directories (both Stable and Insiders)
+     * Returns an array of paths to check
+     */
+    static getVSCodeWorkspaceStoragePaths(): string[] {
+        const base = this.getAppDataPath();
+        return [
+            path.join(base, 'Code', 'User', 'workspaceStorage'),           // Stable
+            path.join(base, 'Code - Insiders', 'User', 'workspaceStorage') // Insiders
+        ];
+    }
+
+    /**
+     * Get all possible VS Code global storage directories (both Stable and Insiders)
+     * Returns an array of paths to check
+     */
+    static getVSCodeGlobalStoragePaths(): string[] {
+        const base = this.getAppDataPath();
+        return [
+            path.join(base, 'Code', 'User', 'globalStorage'),           // Stable
+            path.join(base, 'Code - Insiders', 'User', 'globalStorage') // Insiders
+        ];
+    }
+
+    /**
      * Get VS Code Global Storage path (for Cline/Roo Code etc)
-     * Handles both Stable and Insiders
+     * @deprecated Use getVSCodeGlobalStoragePaths() instead to support both Stable and Insiders
      */
     static getVSCodeGlobalStoragePath(): string {
         const base = this.getAppDataPath();

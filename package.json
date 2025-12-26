@@ -2,7 +2,7 @@
   "name": "waylog",
   "displayName": "WayLog - Save & Export AI Chat History",
   "description": "Sync and backup AI chat history from Cursor, VS Code, Lingma, and CodeBuddy. Export conversations to Markdown and build your team's AI knowledge base.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "icon": "images/icon.png",
   "publisher": "waylog",
   "engines": {
@@ -21,6 +21,22 @@
     "url": "https://github.com/shayne-snap/WayLog/issues"
   },
   "homepage": "https://github.com/shayne-snap/WayLog#readme",
+  "license": "MIT",
+  "keywords": [
+    "ai",
+    "chat",
+    "history",
+    "cursor",
+    "copilot",
+    "backup",
+    "export",
+    "markdown",
+    "lingma",
+    "codebuddy",
+    "cline",
+    "roo-code",
+    "knowledge-base"
+  ],
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -66,20 +82,7 @@
     "publish": "vsce publish",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [
-    "ai",
-    "chat history",
-    "cursor",
-    "copilot",
-    "sync",
-    "backup",
-    "lingma",
-    "tongyi",
-    "codebuddy",
-    "documentation"
-  ],
   "author": "WayLog Team",
-  "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.19.27",
     "@types/vscode": "^1.85.0",
