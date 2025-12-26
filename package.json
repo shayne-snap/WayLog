@@ -21,7 +21,7 @@
     "url": "https://github.com/shayne-snap/WayLog/issues"
   },
   "homepage": "https://github.com/shayne-snap/WayLog#readme",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": [
     "ai",
     "chat",
