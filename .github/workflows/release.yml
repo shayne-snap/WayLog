@@ -54,6 +54,18 @@ jobs:
           # Critical for ensuring we download the correct sqlite binary for the target architecture
           npm_config_arch: ${{ matrix.npm_config_arch }}
 
+      - name: Extract version from tag
+        shell: bash
+        run: |
+          # Extract version from tag (e.g., v0.0.4 -> 0.0.4)
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "Extracted version: $VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          
+          # Update package.json with the tag version
+          npm version $VERSION --no-git-tag-version --allow-same-version
+          echo "✓ Updated package.json to version $VERSION"
+
       - name: Package Extension
         run: vsce package --target ${{ matrix.target }} -o waylog-${{ matrix.target }}-${{ github.ref_name }}.vsix
         

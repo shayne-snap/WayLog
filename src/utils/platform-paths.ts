@@ -46,18 +46,12 @@ export class PlatformPaths {
      * Get CodeBuddy data path
      */
     static getCodeBuddyDataPath(): string {
-        // CodeBuddy path logic might vary, but standardizing on AppData is safe for checking
-        // Based on research:
-        // Mac: ~/Library/Application Support/CodeBuddyExtension/Data
-        // Windows: Seems to use home dir ~/.codebuddy based on some docs, but standard extension data usually in AppData
-        // Let's support both standard AppData and the home dir fallback if needed.
-
         if (process.platform === 'darwin') {
             return path.join(os.homedir(), 'Library', 'Application Support', 'CodeBuddyExtension', 'Data');
         } else if (process.platform === 'win32') {
-            // Windows fallback check both AppData and Home
-            // For now return AppData standard, caller can check alternatives
-            return path.join(process.env.APPDATA || '', 'CodeBuddyExtension', 'Data');
+            // Windows: Use LOCALAPPDATA (not APPDATA/Roaming)
+            // Actual path: C:\Users\{username}\AppData\Local\CodeBuddyExtension
+            return path.join(process.env.LOCALAPPDATA || '', 'CodeBuddyExtension');
         } else {
             return path.join(os.homedir(), '.codebuddy');
         }

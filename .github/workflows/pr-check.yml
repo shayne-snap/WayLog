@@ -1,0 +1,108 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint-and-compile:
+    name: Lint and Compile Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check TypeScript compilation
+        run: npm run compile
+
+      - name: Check for TypeScript errors
+        run: npx tsc --noEmit
+
+      - name: Verify package.json
+        run: |
+          echo "Checking package.json validity..."
+          node -e "require('./package.json')"
+          echo "✓ package.json is valid"
+
+  package-test:
+    name: Package Test (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: win32-x64
+            npm_config_arch: x64
+          - os: macos-latest
+            target: darwin-arm64
+            npm_config_arch: arm64
+          - os: ubuntu-latest
+            target: linux-x64
+            npm_config_arch: x64
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install VSCE
+        run: npm install -g @vscode/vsce
+
+      - name: Install dependencies
+        run: npm install
+        env:
+          npm_config_arch: ${{ matrix.npm_config_arch }}
+
+      - name: Package Extension
+        run: vsce package --target ${{ matrix.target }}
+
+      - name: Verify VSIX file
+        shell: bash
+        run: |
+          if ls *.vsix 1> /dev/null 2>&1; then
+            echo "✓ VSIX package created successfully"
+            ls -lh *.vsix
+          else
+            echo "✗ Failed to create VSIX package"
+            exit 1
+          fi
+
+      - name: Upload VSIX for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-package-${{ matrix.target }}
+          path: "*.vsix"
+          retention-days: 7
+
+  pr-summary:
+    name: PR Summary
+    needs: [lint-and-compile, package-test]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Check results
+        run: |
+          if [ "${{ needs.lint-and-compile.result }}" == "success" ] && [ "${{ needs.package-test.result }}" == "success" ]; then
+            echo "✅ All checks passed! PR is ready to merge."
+          else
+            echo "❌ Some checks failed. Please review the errors above."
+            exit 1
+          fi
