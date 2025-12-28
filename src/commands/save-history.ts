@@ -150,9 +150,7 @@ export async function saveHistoryCommand() {
 
         if (!matchedWorkspace) {
             vscode.window.showWarningMessage(
-                `No ${reader.name} chat history found for current workspace.\n` +
-                `Current: ${path.basename(currentWorkspace)}\n` +
-                `Available workspaces: ${workspaces.map(w => path.basename(w.path)).join(', ')}`
+                `No ${reader.name} chat history found for workspace "${path.basename(currentWorkspace)}".`
             );
             return;
         }

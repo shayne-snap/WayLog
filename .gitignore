@@ -15,7 +15,10 @@ release
 
 # Other IDE Settings
 .cursor/
+.cursorindexingignore
 .specstory/
+.vscode/extensions.json
+.vscode/settings.json
 
 # Local Logs & Dumps
 *.log
