@@ -329,9 +329,12 @@ export class CursorReader extends BaseVscdbReader {
                 (new Date(a.createdAt || 0).getTime()) - (new Date(b.createdAt || 0).getTime())
             );
 
-            // 4. Convert to ChatMessage format
+            // 4. Convert to ChatMessage format (Cursor-style: merge consecutive assistant messages)
             const messages: ChatMessage[] = [];
+            let currentAssistantMessage: { content: string; timestamp: number } | null = null;
+
             for (const b of bubbles) {
+                // Extract text content
                 let content = b.text || '';
                 if (!content && b.richText) {
                     try {
@@ -344,27 +347,55 @@ export class CursorReader extends BaseVscdbReader {
                     } catch { }
                 }
 
-                const metadata: any = {
-                    mode: b.unifiedMode || composer.unifiedMode,
-                    model: b.modelInfo?.modelName || 'default',
-                    thinking: b.allThinkingBlocks || [],
-                    toolCalls: b.toolFormerData ? [b.toolFormerData] : [],
-                    todos: (b.todos || []).map((t: any) => {
-                        if (typeof t === 'string') {
-                            try { return JSON.parse(t); } catch { return t; }
-                        }
-                        return t;
-                    })
-                };
+                const role = b.type === 1 ? 'user' : 'assistant';
 
-                if (content || metadata.toolCalls.length > 0 || metadata.thinking.length > 0) {
-                    messages.push({
-                        role: b.type === 1 ? 'user' : 'assistant',
-                        content: content,
-                        timestamp: b.createdAt ? new Date(b.createdAt).getTime() : Date.now(),
-                        metadata
-                    });
+                // Skip bubbles with no content (pure tool calls or thinking)
+                if (!content) {
+                    continue;
                 }
+
+                if (role === 'user') {
+                    // Flush any pending assistant message
+                    if (currentAssistantMessage) {
+                        messages.push({
+                            role: 'assistant',
+                            content: currentAssistantMessage.content.trim(),
+                            timestamp: currentAssistantMessage.timestamp,
+                            metadata: {}
+                        });
+                        currentAssistantMessage = null;
+                    }
+
+                    // Add user message
+                    messages.push({
+                        role: 'user',
+                        content: content.trim(),
+                        timestamp: b.createdAt ? new Date(b.createdAt).getTime() : Date.now(),
+                        metadata: {}
+                    });
+                } else {
+                    // Assistant message - merge with previous if exists
+                    if (currentAssistantMessage) {
+                        // Append to existing assistant message
+                        currentAssistantMessage.content += '\n\n' + content;
+                    } else {
+                        // Start new assistant message
+                        currentAssistantMessage = {
+                            content: content,
+                            timestamp: b.createdAt ? new Date(b.createdAt).getTime() : Date.now()
+                        };
+                    }
+                }
+            }
+
+            // Flush any remaining assistant message
+            if (currentAssistantMessage) {
+                messages.push({
+                    role: 'assistant',
+                    content: currentAssistantMessage.content.trim(),
+                    timestamp: currentAssistantMessage.timestamp,
+                    metadata: {}
+                });
             }
 
             Logger.debug(`[CursorReader] Fetched ${messages.length} messages for session ${sessionId} in ${Date.now() - startTime}ms`);

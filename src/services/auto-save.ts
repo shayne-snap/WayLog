@@ -250,7 +250,7 @@ export class AutoSaveService {
                 Logger.info(`[AutoSave] Updating ${path.basename(existingFile)}: ${fileMessageCount} → ${session.messages.length} messages`);
 
                 const newMessages = session.messages.slice(fileMessageCount);
-                const newContent = formatMessages(newMessages);
+                const newContent = formatMessages(newMessages, session.source);
 
                 await fs.appendFile(existingFile, '\n' + newContent, 'utf8');
                 return 'updated';
