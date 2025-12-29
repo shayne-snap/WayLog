@@ -24,6 +24,47 @@ export class CopilotChatReader extends BaseVscdbReader {
         return 'chat.ChatSessionStore.index';
     }
 
+    /**
+     * Remove Copilot's thinking process markers from response text.
+     * Copilot often includes verbose internal reasoning like:
+     * **Planning todo list**
+     * I need to use the todo list tool...
+     * 
+     * This method removes these sections, keeping only the final answer.
+     */
+    private removeThinkingProcess(text: string): string {
+        // Pattern: **Title** followed by paragraphs until next **Title** or end
+        // This matches sections like:
+        // **Planning todo list**\n\nI need to...\n\n**Gathering details**\n\nI will...
+
+        // Split by double newlines to get paragraphs
+        const paragraphs = text.split('\n\n');
+        const filtered: string[] = [];
+        let skipNext = false;
+
+        for (let i = 0; i < paragraphs.length; i++) {
+            const para = paragraphs[i];
+
+            // Check if this is a thinking process marker (starts with **Title**)
+            if (/^\*\*[A-Z][a-z]+(?:\s+[a-z]+)*\*\*\s*$/.test(para.trim())) {
+                // This is a section header, skip it and the next paragraph
+                skipNext = true;
+                continue;
+            }
+
+            if (skipNext) {
+                // Skip the content paragraph after a thinking marker
+                skipNext = false;
+                continue;
+            }
+
+            // Keep this paragraph
+            filtered.push(para);
+        }
+
+        return filtered.join('\n\n').trim();
+    }
+
     // Override getWorkspaces to check both Stable and Insiders
     async getWorkspaces(): Promise<WorkspaceInfo[]> {
         const allWorkspaces: WorkspaceInfo[] = [];
@@ -106,8 +147,13 @@ export class CopilotChatReader extends BaseVscdbReader {
 
                         // Add AI response
                         const response = req.response || [];
-                        const responseText = response.map((r: any) => r.response || r.value || '').join('\n');
+                        let responseText = response.map((r: any) => r.response || r.value || '').join('\n');
+
                         if (responseText) {
+                            // Remove Copilot's thinking process markers (e.g., **Planning todo list**, **Gathering identity details**)
+                            // These are verbose internal reasoning steps that clutter the export
+                            responseText = this.removeThinkingProcess(responseText);
+
                             // Identify the agent for a more informative source
                             const agentId = req.agent?.id || 'assistant';
                             messages.push({
