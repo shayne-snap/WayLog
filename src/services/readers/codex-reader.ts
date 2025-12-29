@@ -146,12 +146,17 @@ export class CodexReader implements ChatHistoryReader {
 
                         if (Array.isArray(contentArray)) {
                             for (const part of contentArray) {
-                                if (part.type === 'input_text' || part.type === 'text') {
+                                if (part.type === 'input_text' || part.type === 'text' || part.type === 'output_text') {
                                     // Skip the massive INSTRUCTIONS and environment_context blocks for cleaner output
                                     if (part.text.includes('<INSTRUCTIONS>') || part.text.includes('<environment_context>')) continue;
                                     textContent += part.text;
                                 }
                             }
+                        }
+
+                        // Clean up IDE context injection
+                        if (textContent.includes('# Context from my IDE setup:') && textContent.includes('## My request for Codex:')) {
+                            textContent = textContent.split('## My request for Codex:')[1].trim();
                         }
 
                         if (textContent.trim()) {
@@ -164,7 +169,13 @@ export class CodexReader implements ChatHistoryReader {
                         }
                     } else if (entry.type === 'event_msg' && entry.payload?.type === 'user_message') {
                         // Sometimes user messages come in event_msg
-                        const text = entry.payload.message;
+                        let text = entry.payload.message;
+
+                        // Clean up IDE context injection
+                        if (text && text.includes('# Context from my IDE setup:') && text.includes('## My request for Codex:')) {
+                            text = text.split('## My request for Codex:')[1].trim();
+                        }
+
                         if (text && !messages.some(m => m.content === text.trim())) {
                             if (!title) title = text.trim().slice(0, 50);
                             messages.push({
