@@ -5,17 +5,17 @@ All notable changes to the "WayLog" extension will be documented in this file.
 ## [0.0.8] - 2025-12-29
  
 ### Improved
-- **OpenAI Codex Support**: Fixed a critical issue where AI responses were missing from exports. Your Codex/Windsurf chat history is now fully captured and preserved.
+- **OpenAI Codex Support**: Fixed a critical issue where AI responses were missing from exports. Your Codex chat history is now fully captured and preserved.
 - **Cleaner Export Logs**: Automatically filter out redundant IDE system context information (like active files and open tabs) from your chat history, keeping your logs focused and easy to read.
  
 ## [0.0.7] - 2025-12-29
  
 ### Improved
-- **Cursor Export**: Aligned the Markdown export format with Cursor's official style for consistent look and feel.
-- **Copilot Chat**: Enhanced detection logic and supported concurrent database reading for better stability.
-- **Filtering**: Automatically removes "thinking" and system reasoning blocks from exports to focus on actual content.
-- **Privacy**: Simplified error notifications to protect user privacy while maintaining helpfulness.
-- **Localization**: Added Chinese documentation (`README_zh.md`) and repository language switcher support.
+- **Beautiful Exports**: Aligned our Markdown format with Cursor's official style. Your exported conversations now look and feel just like they do in the editor.
+- **Reliable Copilot Syncing**: Significant improvements to GitHub Copilot Chat detection and stability.
+- **Focus on Content**: We now automatically filter out AI "thinking" processes and system reasoning, leaving only the meaningful dialog you care about.
+- **Enhanced Privacy**: Streamlined error messages to keep your technical details private while still providing clear guidance when things go wrong.
+- **Bilingual Support**: Added full Chinese documentation (`README_zh.md`) and repository language switcher support.
  
 
 
