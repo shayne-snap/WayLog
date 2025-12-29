@@ -24,11 +24,66 @@ export class CopilotChatReader extends BaseVscdbReader {
         return 'chat.ChatSessionStore.index';
     }
 
+    /**
+     * Remove Copilot's thinking process markers from response text.
+     * Copilot often includes verbose internal reasoning like:
+     * **Planning todo list**
+     * I need to use the todo list tool...
+     * 
+     * This method removes these sections, keeping only the final answer.
+     */
+    private removeThinkingProcess(text: string): string {
+        // Pattern: **Title** followed by paragraphs until next **Title** or end
+        // This matches sections like:
+        // **Planning todo list**\n\nI need to...\n\n**Gathering details**\n\nI will...
+
+        // Split by double newlines to get paragraphs
+        const paragraphs = text.split('\n\n');
+        const filtered: string[] = [];
+        let skipNext = false;
+
+        for (let i = 0; i < paragraphs.length; i++) {
+            const para = paragraphs[i];
+
+            // Check if this is a thinking process marker (starts with **Title**)
+            if (/^\*\*[A-Z][a-z]+(?:\s+[a-z]+)*\*\*\s*$/.test(para.trim())) {
+                // This is a section header, skip it and the next paragraph
+                skipNext = true;
+                continue;
+            }
+
+            if (skipNext) {
+                // Skip the content paragraph after a thinking marker
+                skipNext = false;
+                continue;
+            }
+
+            // Keep this paragraph
+            filtered.push(para);
+        }
+
+        const result = filtered.join('\n\n').trim();
+        return result;
+    }
+
+    // Override isAvailable to add logging
+    async isAvailable(): Promise<boolean> {
+        try {
+            const workspaces = await this.getWorkspaces();
+            return workspaces.length > 0;
+        } catch (e) {
+            Logger.error(`[CopilotChatReader] isAvailable failed`, e);
+            return false;
+        }
+    }
+
     // Override getWorkspaces to check both Stable and Insiders
     async getWorkspaces(): Promise<WorkspaceInfo[]> {
         const allWorkspaces: WorkspaceInfo[] = [];
+        const storageDirs = this.getStorageDirs();
 
-        for (const storageDir of this.getStorageDirs()) {
+        for (const storageDir of storageDirs) {
+
             try {
                 await fs.access(storageDir);
                 const hasFolders = await fs.readdir(storageDir);
@@ -62,8 +117,7 @@ export class CopilotChatReader extends BaseVscdbReader {
                         continue; // Skip folders without state.vscdb
                     }
                 }
-            } catch {
-                // Storage directory doesn't exist, skip it
+            } catch (e) {
                 continue;
             }
         }
@@ -73,74 +127,101 @@ export class CopilotChatReader extends BaseVscdbReader {
 
     async getSessions(dbPath: string): Promise<ChatSession[]> {
         try {
-            const indexValue = await this.getTableValue(dbPath, 'ItemTable', this.chatDataKey);
-            if (!indexValue) return [];
-
-            const indexData = JSON.parse(indexValue);
-            const sessions: ChatSession[] = [];
             const workspacePath = path.dirname(dbPath);
             const chatSessionsDir = path.join(workspacePath, 'chatSessions');
 
-            // The index tells us which sessions exist
-            const entries = indexData.entries || {};
-            for (const sessionId of Object.keys(entries)) {
-                const entry = entries[sessionId];
-                const sessionFile = path.join(chatSessionsDir, `${sessionId}.json`);
+            try {
+                await fs.access(chatSessionsDir);
+            } catch {
+                return [];
+            }
+
+            const files = await fs.readdir(chatSessionsDir);
+            const jsonFiles = files.filter(f => f.endsWith('.json'));
+
+            const sessionPromises = jsonFiles.map(async (file): Promise<ChatSession | null> => {
+                const sessionId = path.basename(file, '.json');
+                const sessionFile = path.join(chatSessionsDir, file);
 
                 try {
+                    // Removed size check to ensure accuracy, sacrificing some performance
+                    // const stats = await fs.stat(sessionFile);
+                    // if (stats.size < 2000) return null;
+
                     const content = await fs.readFile(sessionFile, 'utf8');
                     const sessionData = JSON.parse(content);
                     const messages: ChatMessage[] = [];
 
                     // Parse requests (user) and responses (ai)
                     const requests = sessionData.requests || [];
+
                     for (const req of requests) {
+                        const timestamp = req.timestamp || sessionData.creationDate || Date.now();
+
                         // Add User message
                         if (req.message?.text || req.userRequest?.text) {
                             messages.push({
                                 role: 'user',
                                 content: req.message?.text || req.userRequest?.text || '',
-                                timestamp: req.timestamp || entry.lastMessageDate
+                                timestamp: timestamp
                             });
                         }
 
                         // Add AI response
                         const response = req.response || [];
-                        const responseText = response.map((r: any) => r.response || r.value || '').join('\n');
+                        let responseText = '';
+
+                        // Handle new format with separate parts
+                        if (Array.isArray(response)) {
+                            responseText = response
+                                .map((r: any) => {
+                                    if (r.kind === 'thinking') return ''; // Skip thinking blocks
+                                    return r.value || r.response || '';
+                                })
+                                .filter(Boolean)
+                                .join('\n');
+                        } else {
+                            // Fallback for older formats
+                            responseText = typeof response === 'string' ? response : (response.value || '');
+                        }
+
+                        // Also apply text-based filtering just in case
+                        responseText = this.removeThinkingProcess(responseText);
+
                         if (responseText) {
-                            // Identify the agent for a more informative source
-                            const agentId = req.agent?.id || 'assistant';
                             messages.push({
                                 role: 'assistant',
                                 content: responseText,
-                                timestamp: req.timestamp || entry.lastMessageDate,
-                                // Metadata about who replied
-                                metadata: { agent: agentId }
+                                timestamp: timestamp + 1000 // Ensure AI message comes after user
                             });
                         }
                     }
 
                     if (messages.length > 0) {
-                        sessions.push({
+                        return {
                             id: sessionId,
-                            title: entry.title || messages[0].content.slice(0, 50),
-                            description: `Agent: ${reqsToAgent(sessionData.requests)}`,
-                            // Fix: Use creationDate from session file for stable filename generation
-                            // This prevents duplicate files when new messages are added to the session
-                            timestamp: sessionData.creationDate || entry.lastMessageDate || Date.now(),
+                            title: messages[0].content.slice(0, 50),
+                            description: `Copilot Chat: ${messages.length} messages`,
+                            timestamp: sessionData.lastMessageDate || sessionData.creationDate || Date.now(),
+                            lastUpdatedAt: sessionData.lastMessageDate || Date.now(),
                             messages: messages,
                             source: this.name
-                        });
+                        };
                     }
                 } catch (e) {
-                    Logger.info(`[VscodeNativeReader] Session file not found or unreadable: ${sessionId}`);
-                    continue;
+                    Logger.error(`[CopilotChatReader] Failed to parse session file ${file}`, e);
                 }
-            }
+                return null;
+            });
 
-            return sessions.sort((a, b) => b.timestamp - a.timestamp);
+            const results = await Promise.all(sessionPromises);
+
+            const sessions: ChatSession[] = results.filter((s): s is ChatSession => s !== null);
+            sessions.sort((a, b) => b.timestamp - a.timestamp);
+
+            return sessions;
         } catch (error) {
-            Logger.error(`[VscodeNativeReader] Failed to parse sessions`, error);
+            Logger.error(`[CopilotChatReader] Failed to get sessions`, error);
             return [];
         }
     }
