@@ -1,6 +1,23 @@
 # Change Log
 
 All notable changes to the "WayLog" extension will be documented in this file.
+ 
+## [0.0.8] - 2025-12-29
+ 
+### Fixed
+- **Codex Reader**: Fixed a bug where AI responses were not captured by supporting `output_text` message parts.
+- **Log Cleaning**: Implemented automatic filtering of IDE context metadata (`# Context from my IDE setup`) from Codex session exports to provide cleaner chat logs.
+ 
+## [0.0.7] - 2025-12-29
+ 
+### Improved
+- **Cursor Export**: Aligned the Markdown export format with Cursor's official style for consistent look and feel.
+- **Copilot Chat**: Enhanced detection logic and supported concurrent database reading for better stability.
+- **Filtering**: Automatically removes "thinking" and system reasoning blocks from exports to focus on actual content.
+- **Privacy**: Simplified error notifications to protect user privacy while maintaining helpfulness.
+- **Localization**: Added Chinese documentation (`README_zh.md`) and repository language switcher support.
+ 
+
 
 ## [0.0.5] - 2025-12-26
 
