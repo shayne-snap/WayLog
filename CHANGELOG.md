@@ -5,7 +5,7 @@ All notable changes to the "WayLog" extension will be documented in this file.
 ## [0.0.8] - 2025-12-29
  
 ### Improved
-- **Enhanced Codex Export**: Provided a more user-friendly export for OpenAI Codex/Windsurf by ensuring full conversation capture and removing redundant system noise.
+- **Enhanced Codex Export**: Provided a more user-friendly export for OpenAI Codex by ensuring full conversation capture and removing redundant system noise.
  
 ## [0.0.7] - 2025-12-29
  
