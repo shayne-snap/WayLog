@@ -65,23 +65,34 @@ export class SyncManager {
         const active: ChatHistoryReader[] = [];
         const appName = vscode.env.appName || '';
 
+        Logger.debug(`[SyncManager] Checking active providers from ${available.length} available candidates`);
+
         for (const reader of available) {
             let isActive = false;
+            let reason = '';
 
             // 1. Check Native IDE match (e.g. Cursor)
             if (reader.name === 'Cursor' && appName.includes('Cursor')) {
                 isActive = true;
+                reason = 'Native IDE match';
             }
             // 2. Check Installed Extension
             else if (reader.extensionId) {
                 // Check if the extension is installed in the current VS Code / Cursor instance
-                if (vscode.extensions.getExtension(reader.extensionId)) {
+                const extension = vscode.extensions.getExtension(reader.extensionId);
+                if (extension) {
                     isActive = true;
+                    reason = `Extension ${reader.extensionId} installed`;
+                } else {
+                    reason = `Extension ${reader.extensionId} NOT found`;
                 }
             }
 
             if (isActive) {
+                Logger.debug(`[SyncManager] ${reader.name} is ACTIVE (${reason})`);
                 active.push(reader);
+            } else {
+                Logger.debug(`[SyncManager] ${reader.name} is INACTIVE (${reason})`);
             }
         }
         return active;
