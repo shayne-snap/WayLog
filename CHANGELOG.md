@@ -4,9 +4,9 @@ All notable changes to the "WayLog" extension will be documented in this file.
  
 ## [0.0.8] - 2025-12-29
  
-### Fixed
-- **Codex Reader**: Fixed a bug where AI responses were not captured by supporting `output_text` message parts.
-- **Log Cleaning**: Implemented automatic filtering of IDE context metadata (`# Context from my IDE setup`) from Codex session exports to provide cleaner chat logs.
+### Improved
+- **OpenAI Codex Support**: Fixed a critical issue where AI responses were missing from exports. Your Codex/Windsurf chat history is now fully captured and preserved.
+- **Cleaner Export Logs**: Automatically filter out redundant IDE system context information (like active files and open tabs) from your chat history, keeping your logs focused and easy to read.
  
 ## [0.0.7] - 2025-12-29
  
