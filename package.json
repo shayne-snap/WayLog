@@ -61,7 +61,7 @@
         "waylog.autoSave": {
           "type": "boolean",
           "default": true,
-          "description": "Enable automatic background saving of chat history."
+          "description": "Enable automatic background saving of chat history (saves to .waylog/history)."
         }
       }
     }
