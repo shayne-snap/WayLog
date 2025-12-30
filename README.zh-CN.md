@@ -19,8 +19,12 @@ WayLog 是一个**免费、开源、本地优先的扩展**，它能将你转瞬
 - **🌟 开源项目**：完全透明，采用 Apache-2.0 许可证，社区驱动。[在 GitHub 上贡献](https://github.com/shayne-snap/WayLog)！
 - **本地优先架构**：WayLog 在本地运行，直接访问磁盘上的 SQLite 数据库和 JSON 日志。你的数据在你的设备上处理。
 - **后台自动保存**：无需手动操作，保持历史记录实时更新。
+
+  ![Auto Save Setting](demo/auto_save_setting.png)
 - **统一历史聚合**：自动发现并读取设备上已安装的受支持 AI 扩展的对话历史。
 - **选择性保存**：使用 `Save AI Chat History` 命令手动选择要保存的特定对话。
+
+  ![Selective Saving Demo](demo/selective_save.gif)
 - **跨平台支持**：完全兼容 macOS（Intel 和 Apple Silicon）以及 Windows（x64 和 ARM64）。
 
 ## 🔌 支持的 AI 助手

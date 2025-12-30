@@ -61,6 +61,13 @@ export class AutoSaveService {
      * Sync all exported sessions
      */
     private async syncAllExportedSessions() {
+        // Check config before running
+        const config = vscode.workspace.getConfiguration('waylog');
+        if (!config.get<boolean>('autoSave', true)) {
+            Logger.debug('[AutoSave] Skipping sync because auto-save is disabled');
+            return;
+        }
+
         try {
             const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || vscode.workspace.rootPath;
             if (!workspaceRoot) {
