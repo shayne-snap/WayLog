@@ -200,7 +200,7 @@ export class CopilotChatReader extends BaseVscdbReader {
                     if (messages.length > 0) {
                         return {
                             id: sessionId,
-                            title: messages[0].content.slice(0, 50),
+                            title: sessionData.customTitle || messages[0].content.slice(0, 50),
                             description: `Copilot Chat: ${messages.length} messages`,
                             timestamp: sessionData.lastMessageDate || sessionData.creationDate || Date.now(),
                             lastUpdatedAt: sessionData.lastMessageDate || Date.now(),
