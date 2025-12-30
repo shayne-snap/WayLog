@@ -1,6 +1,22 @@
 # Change Log
 
 All notable changes to the "WayLog" extension will be documented in this file.
+ 
+## [0.0.8] - 2025-12-29
+ 
+### Improved
+- **Enhanced Codex Export**: Provided a more user-friendly export for OpenAI Codex by ensuring full conversation capture and removing redundant system noise.
+ 
+## [0.0.7] - 2025-12-29
+ 
+### Improved
+- **Beautiful Exports**: Aligned our Markdown format with Cursor's official style. Your exported conversations now look and feel just like they do in the editor.
+- **Reliable Copilot Syncing**: Significant improvements to GitHub Copilot Chat detection and stability.
+- **Focus on Content**: We now automatically filter out AI "thinking" processes and system reasoning, leaving only the meaningful dialog you care about.
+- **Enhanced Privacy**: Streamlined error messages to keep your technical details private while still providing clear guidance when things go wrong.
+- **Bilingual Support**: Added full Chinese documentation (`README_zh.md`) and repository language switcher support.
+ 
+
 
 ## [0.0.5] - 2025-12-26
 
