@@ -56,7 +56,7 @@ export function formatSessionMarkdown(session: ChatSession): string {
         // Only include the main content, no metadata
         const content = `\n${headerText}\n\n${msg.content}\n`;
 
-        return content + `\n---\n`;
+        return content + '\n---\n';
     }).join('\n');
 
     return header + body;
@@ -77,6 +77,6 @@ export function formatMessages(messages: ChatSession['messages'], sourceName: st
         // Only include the main content, no metadata
         const content = `\n${headerText}\n\n${msg.content}\n`;
 
-        return content + `\n---\n`;
+        return content + '\n---\n';
     }).join('\n');
 }

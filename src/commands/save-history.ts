@@ -288,7 +288,7 @@ async function saveSessionsToWaylog(sessions: ChatSession[]) {
                                 content += `<details>\n<summary>${summary} • ${status}</summary>\n\n`;
                                 if (tool.params) content += `**Parameters:**\n\`\`\`json\n${tool.params}\n\`\`\`\n\n`;
                                 if (tool.result) {
-                                    content += `**Result:**\n`;
+                                    content += '**Result:**\n';
                                     try {
                                         const parsed = JSON.parse(tool.result);
                                         content += `\`\`\`json\n${JSON.stringify(parsed, null, 2)}\n\`\`\`\n`;
@@ -296,19 +296,19 @@ async function saveSessionsToWaylog(sessions: ChatSession[]) {
                                         content += `${tool.result}\n`;
                                     }
                                 }
-                                content += `</details>\n</tool-use>\n`;
+                                content += '</details>\n</tool-use>\n';
                             }
                         }
 
                         if (msg.metadata?.todos && Array.isArray(msg.metadata.todos) && msg.metadata.todos.length > 0) {
-                            content += `\n**Plan Progress:**\n`;
+                            content += '\n**Plan Progress:**\n';
                             for (const todo of msg.metadata.todos) {
                                 const icon = todo.status === 'completed' ? '✅' : (todo.status === 'in_progress' ? '⏳' : '⭕');
                                 content += `- ${icon} ${todo.content || todo}\n`;
                             }
                         }
 
-                        return content + `\n---\n`;
+                        return content + '\n---\n';
                     }).join('\n');
 
                     await fs.appendFile(existingFile, newContent, 'utf8');
@@ -347,4 +347,3 @@ async function saveSessionsToWaylog(sessions: ChatSession[]) {
 
     vscode.window.showInformationMessage(message);
 }
-

@@ -30,7 +30,7 @@ export class LingmaReader implements ChatHistoryReader {
         if (!dbPath) return false;
         try {
             await fs.access(dbPath);
-            Logger.debug(`[LingmaReader] DB file exists`);
+            Logger.debug('[LingmaReader] DB file exists');
             return true;
         } catch (e) {
             Logger.debug(`[LingmaReader] DB file access failed: ${e}`);
@@ -76,19 +76,19 @@ export class LingmaReader implements ChatHistoryReader {
             // Query chat_record table
             // Group by session_id
             const query = `
-                SELECT 
+                SELECT
                     session_id,
-                    request_id, 
-                    chat_prompt, 
-                    summary, 
+                    request_id,
+                    chat_prompt,
+                    summary,
                     error_result,
                     gmt_create,
                     extra
-                FROM chat_record 
+                FROM chat_record
                 WHERE chat_prompt != ''
                 ORDER BY gmt_create ASC
             `;
-            // Note: Changed order to ASC to process messages in chronological order, 
+            // Note: Changed order to ASC to process messages in chronological order,
             // though we can also sort later.
 
             const rows = await this.queryAll(realDbPath, query);
@@ -143,7 +143,7 @@ export class LingmaReader implements ChatHistoryReader {
                 // Update last updated time
                 if (row.gmt_create > (session.lastUpdatedAt || 0)) {
                     session.lastUpdatedAt = row.gmt_create;
-                    // Also update timestamp if we want the file date to reflect the latest activity? 
+                    // Also update timestamp if we want the file date to reflect the latest activity?
                     // Usually timestamp is creation date, lastUpdatedAt is modification.
                 }
             }
@@ -154,7 +154,7 @@ export class LingmaReader implements ChatHistoryReader {
 
             return sessions;
         } catch (error) {
-            Logger.error(`[LingmaReader] Failed to read sessions`, error);
+            Logger.error('[LingmaReader] Failed to read sessions', error);
             return [];
         }
     }
@@ -183,7 +183,7 @@ export class LingmaReader implements ChatHistoryReader {
 
     private async countChats(dbPath: string): Promise<number> {
         try {
-            const rows = await this.queryAll(dbPath, "SELECT COUNT(*) as count FROM chat_record WHERE chat_prompt IS NOT NULL");
+            const rows = await this.queryAll(dbPath, 'SELECT COUNT(*) as count FROM chat_record WHERE chat_prompt IS NOT NULL');
             return rows[0]?.count || 0;
         } catch {
             return 0;

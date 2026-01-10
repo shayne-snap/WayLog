@@ -39,7 +39,7 @@ We love new ideas! Please create an issue with:
    ```bash
    git commit -m "feat: add your feature description"
    ```
-   
+
    Use conventional commit messages:
    - `feat:` for new features
    - `fix:` for bug fixes

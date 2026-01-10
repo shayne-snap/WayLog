@@ -48,7 +48,7 @@ This document tracks the support status of various AI coding assistants and thei
 ### 4. Cursor IDE
 *   **Status**: **Fully Supported**
 *   **Mechanism**: Cross-database join between Workspace and Global SQLite storage.
-*   **Data Structure**: 
+*   **Data Structure**:
     *   **Legacy Data**: Extracts from `workbench.panel.aichat.view.aichat.chatdata` in workspace `state.vscdb`.
     *   **New Data (Agent/Composer)**: Fetches session IDs from `composer.composerData` in workspace `state.vscdb` and aggregates individual message bubbles from the `cursorDiskKV` table in the **Global** `state.vscdb`.
     *   **Modes**: Supports Chat, Agent, Plan, Debug, and Ask modes.
@@ -68,12 +68,12 @@ This document tracks the support status of various AI coding assistants and thei
 ### 7. Google Gemini Code Assist
 *   **Status**: **Planned**
 *   **Mechanism**: Reads VS Code's global state database (`state.vscdb`) and extracts the `google.geminicodeassist` key.
-*   **Data Structure**: 
+*   **Data Structure**:
     *   Chat history is stored as a JSON object in the `ItemTable` of the global `state.vscdb`.
     *   Each conversation contains full message history including user queries, thought processes, and markdown responses.
     *   Includes IDE context (current file, workspace info) for each interaction.
 *   **Data Integrity**: **100%** - Full plaintext access to all conversation data.
-*   **Storage Path**: 
+*   **Storage Path**:
     *   VS Code: `~/Library/Application Support/Code/User/globalStorage/state.vscdb`
     *   VS Code Insiders: `~/Library/Application Support/Code - Insiders/User/globalStorage/state.vscdb`
 *   **Implementation Notes**:

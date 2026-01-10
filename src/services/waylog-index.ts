@@ -56,7 +56,7 @@ export async function getFileMessageCount(filepath: string): Promise<number> {
         Logger.debug(`[WayLog] File ${path.basename(filepath)} has ${count} messages`);
         return count;
     } catch (error) {
-        Logger.error(`[WayLog] Error reading file message count`, error);
+        Logger.error('[WayLog] Error reading file message count', error);
         return 0;
     }
 }

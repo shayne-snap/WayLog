@@ -35,7 +35,7 @@ jobs:
 
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,7 +44,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          
+
       - name: Install VSCE
         run: npm install -g @vscode/vsce
 
@@ -61,14 +61,14 @@ jobs:
           VERSION=${GITHUB_REF#refs/tags/v}
           echo "Extracted version: $VERSION"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          
+
           # Update package.json with the tag version
           npm version $VERSION --no-git-tag-version --allow-same-version
           echo "✓ Updated package.json to version $VERSION"
 
       - name: Package Extension
         run: vsce package --target ${{ matrix.target }} -o waylog-${{ matrix.target }}-${{ github.ref_name }}.vsix
-        
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -83,7 +83,7 @@ jobs:
     steps:
       - name: Download Artifacts
         uses: actions/download-artifact@v4
-      
+
       - name: Install VSCE
         run: npm install -g @vscode/vsce
 

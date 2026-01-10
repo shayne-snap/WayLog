@@ -99,7 +99,7 @@ export abstract class BaseVscdbReader implements ChatHistoryReader {
 
     protected async getTableValue(dbPath: string, tableName: string, key: string): Promise<string | null> {
         try {
-            const safeKey = key.replace(/'/g, "''");
+            const safeKey = key.replace(/'/g, '\'\'');
             const query = `SELECT value FROM ${tableName} WHERE [key] = '${safeKey}' LIMIT 1`;
             const results = await this.runSqliteQuery(dbPath, query);
             if (results && results.length > 0) {
