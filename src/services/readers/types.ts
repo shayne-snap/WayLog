@@ -33,7 +33,7 @@ export interface ChatHistoryReader {
     extensionId?: string; // Optional: VS Code extension ID for UI grouping (e.g. 'publisher.name')
 
     /**
-     * Checks if this source is available on the current system 
+     * Checks if this source is available on the current system
      * (e.g., is the app installed / data directory exists?)
      */
     isAvailable(): Promise<boolean>;

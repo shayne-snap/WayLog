@@ -5,15 +5,8 @@ import { BaseVscdbReader } from './base-vscdb-reader';
 import { ChatSession, ChatMessage, WorkspaceInfo } from './types';
 import { Logger } from '../../utils/logger';
 import { PlatformPaths } from '../../utils/platform-paths';
-
-// Try to load the module, handle failure gracefully
-let sqlite3: any;
-try {
-    sqlite3 = require('@vscode/sqlite3');
-} catch (e) {
-    Logger.error('[CursorReader] Failed to require @vscode/sqlite3. Is it installed?', e);
-    sqlite3 = null;
-}
+import { SqliteDatabase } from '../../utils/sqlite-database';
+import { CursorParser } from './cursor-parser';
 
 export class CursorReader extends BaseVscdbReader {
     public readonly name = 'Cursor';
@@ -35,38 +28,9 @@ export class CursorReader extends BaseVscdbReader {
         return 'composer.composerData';
     }
 
-    private async openNativeDb(dbPath: string): Promise<any> {
-        if (!sqlite3) {
-            throw new Error('SQLite native driver not available');
-        }
-        return new Promise((resolve, reject) => {
-            const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY, (err: any) => {
-                if (err) reject(err);
-                else resolve(db);
-            });
-        });
-    }
-
-    private async dbGet(db: any, sql: string, params: any[] = []): Promise<any> {
-        return new Promise((resolve, reject) => {
-            db.get(sql, params, (err: any, row: any) => {
-                if (err) reject(err);
-                else resolve(row);
-            });
-        });
-    }
-
-    private async dbClose(db: any): Promise<void> {
-        return new Promise((resolve, reject) => {
-            db.close((err: any) => {
-                if (err) reject(err);
-                else resolve();
-            });
-        });
-    }
 
     async getWorkspaces(): Promise<WorkspaceInfo[]> {
-        if (!sqlite3) {
+        if (!SqliteDatabase.isAvailable()) {
             Logger.info('[CursorReader] Native SQLite not available. Cannot scan Cursor workspaces.');
             return [];
         }
@@ -113,7 +77,7 @@ export class CursorReader extends BaseVscdbReader {
                 }
             }
         } catch (error) {
-            Logger.error(`[CursorReader] Workspace scan failed`, error);
+            Logger.error('[CursorReader] Workspace scan failed', error);
         }
 
         Logger.debug(`[CursorReader] Total workspaces found: ${workspaces.length}`);
@@ -121,54 +85,34 @@ export class CursorReader extends BaseVscdbReader {
     }
 
     private async countActualSessions(dbPath: string): Promise<number> {
-        let wsDb: any = null;
-
         try {
-            wsDb = await this.openNativeDb(dbPath);
-            let count = 0;
+            return await SqliteDatabase.using(dbPath, async (db) => {
+                let count = 0;
 
-            const legacyRow = await this.dbGet(wsDb, "SELECT value FROM ItemTable WHERE [key] = ?", [this.chatDataKey]);
-            if (legacyRow?.value) {
-                try {
-                    const data = JSON.parse(legacyRow.value);
-                    if (data.tabs) {
-                        count += data.tabs.filter((t: any) => t.bubbles && t.bubbles.length > 0).length;
-                    }
-                } catch { }
-            }
-
-            const compRow = await this.dbGet(wsDb, "SELECT value FROM ItemTable WHERE [key] = ?", [this.composerDataKey]);
-            if (compRow?.value) {
-                try {
-                    const data = JSON.parse(compRow.value);
-                    if (data.allComposers && Array.isArray(data.allComposers)) {
-                        for (const comp of data.allComposers) {
-                            if (!comp.composerId) continue;
-
-                            if (comp.name && comp.name !== 'Untitled Composer') {
-                                count++;
-                                continue;
-                            }
-
-                            const hasSubtitle = !!comp.subtitle;
-                            const hasCodeChanges = (comp.totalLinesAdded || 0) > 0 || (comp.totalLinesRemoved || 0) > 0;
-                            const lastUpdate = comp.lastUpdatedAt || comp.createdAt || 0;
-                            const isActive = lastUpdate - (comp.createdAt || 0) > 5000;
-
-                            if (hasSubtitle || hasCodeChanges || isActive) {
-                                count++;
-                            }
+                const legacyRow = await db.get('SELECT value FROM ItemTable WHERE [key] = ?', [this.chatDataKey]);
+                if (legacyRow?.value) {
+                    try {
+                        const data = JSON.parse(legacyRow.value);
+                        if (data.tabs) {
+                            count += data.tabs.filter((t: any) => t.bubbles && t.bubbles.length > 0).length;
                         }
-                    }
-                } catch (e) {
-                    Logger.error(`[CursorReader] Failed to parse composer data`, e);
+                    } catch { }
                 }
-            }
-            return count;
+
+                const compRow = await db.get('SELECT value FROM ItemTable WHERE [key] = ?', [this.composerDataKey]);
+                if (compRow?.value) {
+                    try {
+                        const data = JSON.parse(compRow.value);
+                        const composers = data.allComposers || [];
+                        count += composers.filter((c: any) => CursorParser.isValidComposer(c)).length;
+                    } catch (e) {
+                        Logger.error('[CursorReader] Failed to parse composer data', e);
+                    }
+                }
+                return count;
+            });
         } catch (e) {
             return 0;
-        } finally {
-            if (wsDb) await this.dbClose(wsDb);
         }
     }
 
@@ -180,91 +124,50 @@ export class CursorReader extends BaseVscdbReader {
         const startTotal = Date.now();
         Logger.debug(`[CursorReader] getSessions METADATA-ONLY (no Global DB) started for ${dbPath}`);
 
-        const sessions: ChatSession[] = [];
-        let wsDb: any = null;
-
         try {
-            wsDb = await this.openNativeDb(dbPath);
+            return await SqliteDatabase.using(dbPath, async (db) => {
+                const sessions: ChatSession[] = [];
 
-            // 1. Legacy Chat (stored locally, can get full content)
-            const legacyRow = await this.dbGet(wsDb, "SELECT value FROM ItemTable WHERE [key] = ?", [this.chatDataKey]);
-            if (legacyRow?.value) {
-                const data = JSON.parse(legacyRow.value);
-                for (const tab of (data.tabs || [])) {
-                    const messages: ChatMessage[] = [];
-                    for (const b of (tab.bubbles || [])) {
-                        const text = b.text || b.modelResponse;
-                        if (text) {
-                            messages.push({
-                                role: b.type === 'user' ? 'user' : 'assistant',
-                                content: text,
+                // 1. Legacy Chat (stored locally, can get full content)
+                const legacyRow = await db.get('SELECT value FROM ItemTable WHERE [key] = ?', [this.chatDataKey]);
+                if (legacyRow?.value) {
+                    const data = JSON.parse(legacyRow.value);
+                    for (const tab of (data.tabs || [])) {
+                        const messages = CursorParser.parseLegacyTabMessages(tab);
+                        if (messages.length > 0) {
+                            sessions.push({
+                                id: tab.id || tab.tabId || Math.random().toString(),
+                                title: tab.chatTitle || messages[0].content.slice(0, 50),
+                                description: `Chat (${messages.length} msg)`,
                                 timestamp: tab.lastUpdatedAt || Date.now(),
-                                metadata: { model: b.modelType || 'unknown', type: 'legacy' }
+                                lastUpdatedAt: tab.lastUpdatedAt || Date.now(),
+                                messages,
+                                source: this.name
                             });
                         }
                     }
-                    if (messages.length > 0) {
-                        sessions.push({
-                            id: tab.tabId || Math.random().toString(),
-                            title: tab.chatTitle || messages[0].content.slice(0, 50),
-                            description: `Chat (${messages.length} msg)`,
-                            timestamp: tab.lastUpdatedAt || Date.now(),
-                            lastUpdatedAt: tab.lastUpdatedAt || Date.now(),
-                            messages,
-                            source: this.name
-                        });
-                    }
                 }
-            }
 
-            // 2. Composer - METADATA ONLY (DO NOT OPEN GLOBAL DB)
-            const compRow = await this.dbGet(wsDb, "SELECT value FROM ItemTable WHERE [key] = ?", [this.composerDataKey]);
-            if (compRow?.value) {
-                const data = JSON.parse(compRow.value);
-                const composers = data.allComposers || [];
-                Logger.debug(`[CursorReader] Found ${composers.length} raw composers`);
-
-                // Filter valid composers based on local metadata
-                for (const comp of composers) {
-                    if (!comp.composerId) continue;
-
-                    const hasCustomName = comp.name && comp.name !== 'Untitled Composer';
-                    const hasSubtitle = !!comp.subtitle;
-                    const hasCodeChanges = (comp.totalLinesAdded || 0) > 0 || (comp.totalLinesRemoved || 0) > 0;
-                    const lastUpdate = comp.lastUpdatedAt || comp.createdAt || 0;
-                    const isActive = lastUpdate - (comp.createdAt || 0) > 5000;
-
-                    if (hasCustomName || hasSubtitle || hasCodeChanges || isActive) {
-                        // Generate title from metadata
-                        let title = comp.name || 'Untitled Composer';
-                        if (title === 'Untitled Composer' && comp.subtitle) {
-                            title = comp.subtitle.slice(0, 50);
-                        }
-
-                        sessions.push({
-                            id: comp.composerId,
-                            title,
-                            description: `${comp.unifiedMode || 'Agent'} Mode`,
-                            timestamp: comp.createdAt || comp.lastUpdatedAt || Date.now(),
-                            lastUpdatedAt: comp.lastUpdatedAt || comp.createdAt || Date.now(),
-                            messages: [], // EMPTY - will be populated during actual export
-                            source: this.name
-                        });
-
-                        Logger.debug(`[CursorReader] Session ${comp.composerId.slice(0, 8)}: createdAt=${comp.createdAt}, lastUpdatedAt=${comp.lastUpdatedAt}, using=${comp.createdAt || comp.lastUpdatedAt || Date.now()}`);
+                // 2. Composer - METADATA ONLY (DO NOT OPEN GLOBAL DB)
+                const compRow = await db.get('SELECT value FROM ItemTable WHERE [key] = ?', [this.composerDataKey]);
+                if (compRow?.value) {
+                    try {
+                        const data = JSON.parse(compRow.value);
+                        const composers = data.allComposers || [];
+                        const composerSessions = CursorParser.parseComposers(composers, this.name);
+                        sessions.push(...composerSessions);
+                        Logger.debug(`[CursorReader] Identified ${composerSessions.length} composer sessions`);
+                    } catch (e) {
+                        Logger.error('[CursorReader] Failed to parse composer data', e);
                     }
                 }
 
-                Logger.debug(`[CursorReader] Identified ${sessions.length} sessions from metadata`);
-            }
-
-            Logger.debug(`[CursorReader] Total getSessions (metadata-only) took ${Date.now() - startTotal}ms`);
-            return sessions.sort((a, b) => b.timestamp - a.timestamp);
+                Logger.debug(`[CursorReader] Total getSessions (metadata-only) took ${Date.now() - startTotal}ms`);
+                return sessions.sort((a, b) => b.timestamp - a.timestamp);
+            });
         } catch (error) {
-            Logger.error(`[CursorReader] Session fetch failed`, error);
+            Logger.error('[CursorReader] Session fetch failed', error);
             return [];
-        } finally {
-            if (wsDb) await this.dbClose(wsDb);
         }
     }
 
@@ -276,136 +179,55 @@ export class CursorReader extends BaseVscdbReader {
         const startTime = Date.now();
         Logger.debug(`[CursorReader] Fetching content for session ${sessionId}`);
 
-        let globalDb: any = null;
-        let wsDb: any = null;
-
         try {
-            // 1. Get composer metadata from workspace DB
-            wsDb = await this.openNativeDb(workspaceDbPath);
-            const compRow = await this.dbGet(wsDb, "SELECT value FROM ItemTable WHERE [key] = ?", [this.composerDataKey]);
+            // Use SqliteDatabase.using for workspace DB
+            return await SqliteDatabase.using(workspaceDbPath, async (wsDb) => {
+                // 1. Get composer metadata from workspace DB
+                const compRow = await wsDb.get('SELECT value FROM ItemTable WHERE [key] = ?', [this.composerDataKey]);
 
-            if (!compRow?.value) {
-                Logger.info(`[CursorReader] No composer data found in workspace DB`);
-                return [];
-            }
-
-            const data = JSON.parse(compRow.value);
-            const composer = (data.allComposers || []).find((c: any) => c.composerId === sessionId);
-
-            if (!composer) {
-                Logger.info(`[CursorReader] Composer ${sessionId} not found in metadata`);
-                return [];
-            }
-
-            // 2. Query Global DB for bubbles
-            globalDb = await this.openNativeDb(this.globalDbPath);
-            const bubbles: any[] = [];
-
-            await new Promise<void>((resolve, reject) => {
-                globalDb.each(
-                    `SELECT value FROM cursorDiskKV WHERE key LIKE ?`,
-                    [`bubbleId:${sessionId}:%`],
-                    (err: any, row: any) => {
-                        if (err) {
-                            Logger.error(`[CursorReader] Error reading bubble`, err);
-                            return;
-                        }
-                        try {
-                            const bubble = JSON.parse(row.value);
-                            if (bubble) bubbles.push(bubble);
-                        } catch (e) {
-                            Logger.error(`[CursorReader] Failed to parse bubble`, e);
-                        }
-                    },
-                    (err: any) => {
-                        if (err) reject(err);
-                        else resolve();
-                    }
-                );
-            });
-
-            // 3. Sort by creation time
-            bubbles.sort((a, b) =>
-                (new Date(a.createdAt || 0).getTime()) - (new Date(b.createdAt || 0).getTime())
-            );
-
-            // 4. Convert to ChatMessage format (Cursor-style: merge consecutive assistant messages)
-            const messages: ChatMessage[] = [];
-            let currentAssistantMessage: { content: string; timestamp: number } | null = null;
-
-            for (const b of bubbles) {
-                // Extract text content
-                let content = b.text || '';
-                if (!content && b.richText) {
-                    try {
-                        const rt = JSON.parse(b.richText);
-                        if (rt.root?.children) {
-                            content = rt.root.children
-                                .map((c: any) => c.children ? c.children.map((cc: any) => cc.text || '').join('') : '')
-                                .join('\n').trim();
-                        }
-                    } catch { }
+                if (!compRow?.value) {
+                    Logger.info('[CursorReader] No composer data found in workspace DB');
+                    return [];
                 }
 
-                const role = b.type === 1 ? 'user' : 'assistant';
+                const data = JSON.parse(compRow.value);
+                const composer = (data.allComposers || []).find((c: any) => c.composerId === sessionId);
 
-                // Skip bubbles with no content (pure tool calls or thinking)
-                if (!content) {
-                    continue;
+                if (!composer) {
+                    Logger.info(`[CursorReader] Composer ${sessionId} not found in metadata`);
+                    return [];
                 }
 
-                if (role === 'user') {
-                    // Flush any pending assistant message
-                    if (currentAssistantMessage) {
-                        messages.push({
-                            role: 'assistant',
-                            content: currentAssistantMessage.content.trim(),
-                            timestamp: currentAssistantMessage.timestamp,
-                            metadata: {}
-                        });
-                        currentAssistantMessage = null;
-                    }
+                // 2. Query Global DB for bubbles
+                return await SqliteDatabase.using(this.globalDbPath, async (globalDb) => {
+                    const bubbles: any[] = [];
 
-                    // Add user message
-                    messages.push({
-                        role: 'user',
-                        content: content.trim(),
-                        timestamp: b.createdAt ? new Date(b.createdAt).getTime() : Date.now(),
-                        metadata: {}
-                    });
-                } else {
-                    // Assistant message - merge with previous if exists
-                    if (currentAssistantMessage) {
-                        // Append to existing assistant message
-                        currentAssistantMessage.content += '\n\n' + content;
-                    } else {
-                        // Start new assistant message
-                        currentAssistantMessage = {
-                            content: content,
-                            timestamp: b.createdAt ? new Date(b.createdAt).getTime() : Date.now()
-                        };
-                    }
-                }
-            }
+                    await globalDb.each(
+                        'SELECT value FROM cursorDiskKV WHERE key LIKE ?',
+                        [`bubbleId:${sessionId}:%`],
+                        (row: any) => {
+                            try {
+                                const bubble = JSON.parse(row.value);
+                                if (bubble) bubbles.push(bubble);
+                            } catch (e) {
+                                Logger.error('[CursorReader] Failed to parse bubble', e);
+                            }
+                        }
+                    );
 
-            // Flush any remaining assistant message
-            if (currentAssistantMessage) {
-                messages.push({
-                    role: 'assistant',
-                    content: currentAssistantMessage.content.trim(),
-                    timestamp: currentAssistantMessage.timestamp,
-                    metadata: {}
+                    // 3. Convert to ChatMessage format using CursorParser
+                    const messages = CursorParser.parseBubbles(bubbles);
+
+                    Logger.debug(`[CursorReader] Fetched ${messages.length} messages for session ${sessionId} in ${Date.now() - startTime}ms`);
+                    return messages;
+
+                    Logger.debug(`[CursorReader] Fetched ${messages.length} messages for session ${sessionId} in ${Date.now() - startTime}ms`);
+                    return messages;
                 });
-            }
-
-            Logger.debug(`[CursorReader] Fetched ${messages.length} messages for session ${sessionId} in ${Date.now() - startTime}ms`);
-            return messages;
+            });
         } catch (error) {
             Logger.error(`[CursorReader] Failed to fetch session content for ${sessionId}`, error);
             return [];
-        } finally {
-            if (wsDb) await this.dbClose(wsDb);
-            if (globalDb) await this.dbClose(globalDb);
         }
     }
 }

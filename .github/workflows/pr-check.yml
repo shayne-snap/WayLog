@@ -9,7 +9,7 @@ jobs:
   lint-and-compile:
     name: Lint and Compile Check
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,6 +25,12 @@ jobs:
 
       - name: Check TypeScript compilation
         run: npm run compile
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Tests
+        run: npm test
 
       - name: Check for TypeScript errors
         run: npx tsc --noEmit
@@ -51,7 +57,7 @@ jobs:
           - os: ubuntu-latest
             target: linux-x64
             npm_config_arch: x64
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -96,7 +102,7 @@ jobs:
     needs: [lint-and-compile, package-test]
     runs-on: ubuntu-latest
     if: always()
-    
+
     steps:
       - name: Check results
         run: |

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { Logger } from '../utils/logger';
+import { WorkspaceMatcher } from '../utils/workspace-matcher';
 import { SyncManager } from './readers/sync-manager';
 import { ChatSession } from './readers/types';
 import { findExistingFile, getFileMessageCount, generateFilename } from './waylog-index';
@@ -57,16 +58,12 @@ export class AutoSaveService {
         }
     }
 
+
     /**
      * Sync all exported sessions
      */
     private async syncAllExportedSessions() {
-        // Check config before running
-        const config = vscode.workspace.getConfiguration('waylog');
-        if (!config.get<boolean>('autoSave', true)) {
-            Logger.debug('[AutoSave] Skipping sync because auto-save is disabled');
-            return;
-        }
+        if (!this.shouldRunSync()) return;
 
         try {
             const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || vscode.workspace.rootPath;
@@ -75,114 +72,25 @@ export class AutoSaveService {
                 return;
             }
 
-            const historyDir = path.join(workspaceRoot, '.waylog', 'history');
+            const historyDir = await this.prepareHistoryDirectory(workspaceRoot);
+            if (!historyDir) return;
 
-            // Create history directory if it doesn't exist
-            try {
-                await fs.mkdir(historyDir, { recursive: true });
-            } catch (error) {
-                Logger.error('[AutoSave] Failed to create .waylog/history directory', error);
-                return;
-            }
+            Logger.debug('[AutoSave] Running sync check...');
 
-            Logger.debug(`[AutoSave] Running sync check...`);
-
-            // Get all sessions from active readers only (Active-Only Policy)
             const manager = SyncManager.getInstance();
             const readers = await manager.getActiveProviders();
 
-            let updatedCount = 0;
-            let createdCount = 0;
+            let totalUpdated = 0;
+            let totalCreated = 0;
 
             for (const reader of readers) {
-                try {
-                    const workspaces = await reader.getWorkspaces();
-
-                    // Only sync sessions from the current workspace
-                    // Normalize paths for accurate comparison
-                    const normalizedRoot = path.normalize(workspaceRoot).toLowerCase();
-                    const workspaceFile = vscode.workspace.workspaceFile;
-
-                    let currentWorkspace = workspaces.find(ws => {
-                        const normalizedWsPath = path.normalize(ws.path).toLowerCase();
-
-                        // 1. Priority: Check if it matches the current .code-workspace file
-                        if (workspaceFile && workspaceFile.scheme === 'file') {
-                            const normalizedWorkspaceFile = path.normalize(workspaceFile.fsPath).toLowerCase();
-                            if (normalizedWsPath === normalizedWorkspaceFile) {
-                                return true;
-                            }
-                        }
-
-                        // 2. Fallback: Exact match folder path
-                        return normalizedWsPath === normalizedRoot;
-                    });
-
-                    // 3. Fuzzy Fallback: Match by folder name (basename)
-                    // Solves drive letter or path format mismatch issues on Windows (e.g. C: vs c:)
-                    if (!currentWorkspace) {
-                        const currentBasename = path.basename(normalizedRoot);
-                        const candidates = workspaces.filter(ws => {
-                            const wsBasename = path.basename(path.normalize(ws.path).toLowerCase());
-                            return wsBasename === currentBasename;
-                        });
-
-                        if (candidates.length > 0) {
-                            // Pick the most recently modified one if multiple match
-                            currentWorkspace = candidates.sort((a, b) => b.lastModified - a.lastModified)[0];
-                            // Found by fuzzy match
-                            Logger.info(`[AutoSave] Fuzzy matched workspace by name '${currentBasename}': ${currentWorkspace.path}`);
-                        }
-                    }
-
-
-                    if (!currentWorkspace) {
-                        Logger.debug(`[AutoSave] No ${reader.name} workspace found for ${workspaceRoot}`);
-                        if (reader.name.includes('Roo') || reader.name.includes('Cline') || reader.name.includes('Kilo')) {
-                            Logger.debug(`[AutoSave] Available workspaces: ${workspaces.map(w => w.path).join(', ')}`);
-                        }
-                        continue;
-                    }
-
-
-                    // Use dbPath for querying sessions (falls back to path if dbPath not available)
-                    const dbPath = currentWorkspace.dbPath || currentWorkspace.path;
-                    Logger.debug(`[AutoSave] Calling getSessions for ${reader.name} with dbPath: ${dbPath}`);
-                    const sessions = await reader.getSessions(dbPath);
-                    Logger.info(`[AutoSave] Got ${sessions.length} sessions from ${reader.name}`);
-
-                    for (const session of sessions) {
-                        // Optimization removed: We should always check file system state
-                        // regardless of cached timestamp to handle cases where users delete files manually.
-                        // The syncSession method already handles file existence checks efficiently.
-
-                        const result = await this.syncSession(session, historyDir, dbPath);
-
-                        if (result === 'updated') {
-                            updatedCount++;
-                        } else if (result === 'created') {
-                            createdCount++;
-                        }
-
-                        // Update sync state on success
-                        if ((result === 'updated' || result === 'created' || result === 'skipped') && this.context && session.lastUpdatedAt) {
-                            // Even if skipped (e.g. file exists but content same), we can mark as synced to avoid re-reading file
-                            // But 'skipped' in syncSession means "no new messages found in file check".
-                            // So it is safe to update cache.
-                            await this.context.workspaceState.update(`waylog.sync.${session.id}`, session.lastUpdatedAt);
-                        }
-                    }
-                } catch (error) {
-                    Logger.error(`[AutoSave] Error syncing ${reader.name}`, error);
-                }
+                const { updated, created } = await this.processProviderSessions(reader, workspaceRoot, historyDir);
+                totalUpdated += updated;
+                totalCreated += created;
             }
 
-            if (updatedCount > 0 || createdCount > 0) {
-                if (createdCount > 0 || updatedCount > 0) {
-                    Logger.info(`[AutoSave] Sync completed: ${createdCount} created, ${updatedCount} updated`);
-                } else {
-                    Logger.debug(`[AutoSave] Sync completed: 0 created, 0 updated`);
-                }
+            if (totalUpdated > 0 || totalCreated > 0) {
+                Logger.info(`[AutoSave] Sync completed: ${totalCreated} created, ${totalUpdated} updated`);
             }
         } catch (error) {
             Logger.error('[AutoSave] Error in auto-sync', error);
@@ -190,85 +98,155 @@ export class AutoSaveService {
     }
 
     /**
+     * Helper to check if sync should run based on configuration
+     */
+    private shouldRunSync(): boolean {
+        const config = vscode.workspace.getConfiguration('waylog');
+        if (!config.get<boolean>('autoSave', true)) {
+            Logger.debug('[AutoSave] Skipping sync because auto-save is disabled');
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Helper to prepare the history directory
+     */
+    private async prepareHistoryDirectory(workspaceRoot: string): Promise<string | undefined> {
+        const historyDir = path.join(workspaceRoot, '.waylog', 'history');
+        try {
+            await fs.mkdir(historyDir, { recursive: true });
+            return historyDir;
+        } catch (error) {
+            Logger.error('[AutoSave] Failed to create .waylog/history directory', error);
+            return undefined;
+        }
+    }
+
+    /**
+     * Process sessions for a specific provider
+     */
+    private async processProviderSessions(
+        reader: any,
+        workspaceRoot: string,
+        historyDir: string
+    ): Promise<{ updated: number; created: number }> {
+        let updated = 0;
+        let created = 0;
+
+        try {
+            const workspaces = await reader.getWorkspaces();
+            const currentWorkspace = WorkspaceMatcher.findBestMatch(
+                workspaces,
+                workspaceRoot,
+                vscode.workspace.workspaceFile?.fsPath
+            );
+
+            if (!currentWorkspace) {
+                Logger.debug(`[AutoSave] No ${reader.name} workspace found for ${workspaceRoot}`);
+                return { updated, created };
+            }
+
+            const dbPath = currentWorkspace.dbPath || currentWorkspace.path;
+            const sessions = await reader.getSessions(dbPath);
+            Logger.info(`[AutoSave] Got ${sessions.length} sessions from ${reader.name}`);
+
+            for (const session of sessions) {
+                const result = await this.syncSession(session, historyDir, dbPath);
+
+                if (result === 'updated') updated++;
+                else if (result === 'created') created++;
+
+                // Update sync state cache
+                if ((result === 'updated' || result === 'created' || result === 'skipped') && this.context && session.lastUpdatedAt) {
+                    await this.context.workspaceState.update(`waylog.sync.${session.id}`, session.lastUpdatedAt);
+                }
+            }
+        } catch (error) {
+            Logger.error(`[AutoSave] Error syncing ${reader.name}`, error);
+        }
+
+        return { updated, created };
+    }
+
+
+    /**
      * Sync a single session
      */
     private async syncSession(session: ChatSession, historyDir: string, workspaceDbPath: string): Promise<'created' | 'updated' | 'skipped'> {
         try {
-            Logger.debug(`[AutoSave] syncSession called for ${session.id} (${session.title})`);
+            Logger.debug(`[AutoSave] Syncing session: ${session.id} (${session.title})`);
 
-            // For lazy-loaded sessions, fetch content first to get the real title
-            // This is necessary because findExistingFile uses the title to generate filename
-            if (session.messages.length === 0) {
-                Logger.debug(`[AutoSave] Session has no messages, lazy loading...`);
-                const manager = SyncManager.getInstance();
-                const reader = manager.getReader(session.source) as any;
-                Logger.debug(`[AutoSave] Got reader: ${reader ? reader.name : 'null'}`);
+            // 1. Ensure we have session content (Lazy Loading)
+            await this.ensureSessionContent(session, workspaceDbPath);
+            if (session.messages.length === 0) return 'skipped';
 
-                if (reader) {
-                    await loadSessionContent(session, reader, workspaceDbPath);
-                    Logger.debug(`[AutoSave] Fetched ${session.messages.length} messages`);
-
-                    // Previously we overrode the title here. 
-                    // Now we trust the reader's title to match UI and avoid duplicate files.
-                }
-            }
-
-            if (session.messages.length === 0) {
-                Logger.debug(`[AutoSave] No messages after fetch, skipping`);
-                return 'skipped';
-            }
-
-            Logger.debug(`[AutoSave] Checking for existing file...`);
+            // 2. Check for existing file
             const existingFile = await findExistingFile(session, historyDir);
-            Logger.debug(`[AutoSave] Existing file: ${existingFile || 'null'}`);
 
             if (!existingFile) {
-                // File doesn't exist - create new file
-                Logger.debug(`[AutoSave] Creating new file...`);
-                const filename = generateFilename(session);
-                Logger.debug(`[AutoSave] Generated filename: ${filename}`);
-                const filepath = path.join(historyDir, filename);
-                const content = formatSessionMarkdown(session);
-                Logger.debug(`[AutoSave] Writing file to: ${filepath}`);
-                await fs.mkdir(historyDir, { recursive: true });
-                await fs.writeFile(filepath, content, 'utf8');
-
-                Logger.debug(`[AutoSave] Created new file: ${filename}`);
-                return 'created';
+                return await this.createNewFile(session, historyDir);
             }
 
-            // File exists - check if there are new messages
-            Logger.debug(`[AutoSave] File exists, checking message count...`);
-            const fileMessageCount = await getFileMessageCount(existingFile);
-            Logger.debug(`[AutoSave] File has ${fileMessageCount} messages, session has ${session.messages.length} messages`);
-
-            // Lazy load messages if needed
-            if (session.messages.length === 0) {
-                const manager = SyncManager.getInstance();
-                const reader = manager.getReader(session.source) as any;
-
-                if (reader && reader.fetchSessionContent) {
-                    session.messages = await reader.fetchSessionContent(session.id, workspaceDbPath);
-                }
-            }
-
-            if (session.messages.length > fileMessageCount) {
-                // Has new messages - append incrementally
-                Logger.info(`[AutoSave] Updating ${path.basename(existingFile)}: ${fileMessageCount} → ${session.messages.length} messages`);
-
-                const newMessages = session.messages.slice(fileMessageCount);
-                const newContent = formatMessages(newMessages, session.source);
-
-                await fs.appendFile(existingFile, '\n' + newContent, 'utf8');
-                return 'updated';
-            }
-
-            return 'skipped';
+            // 3. Incrementally update if there are new messages
+            return await this.appendNewMessages(session, existingFile);
         } catch (error) {
             Logger.error(`[AutoSave] Error syncing session ${session.id}`, error);
-            Logger.error(`[AutoSave] Error details:`, error instanceof Error ? error.stack : error);
             return 'skipped';
         }
+    }
+
+    /**
+     * Ensures session content is loaded. Handles lazy loading from providers.
+     */
+    private async ensureSessionContent(session: ChatSession, workspaceDbPath: string): Promise<void> {
+        if (session.messages.length > 0) return;
+
+        Logger.debug(`[AutoSave] Lazy loading content for ${session.id}`);
+        const manager = SyncManager.getInstance();
+        const reader = manager.getReader(session.source) as any;
+
+        if (reader) {
+            await loadSessionContent(session, reader, workspaceDbPath);
+            // Fallback to fetchSessionContent if loadSessionContent didn't do it
+            if (session.messages.length === 0 && reader.fetchSessionContent) {
+                session.messages = await reader.fetchSessionContent(session.id, workspaceDbPath);
+            }
+        }
+    }
+
+    /**
+     * Creates a new file for a session
+     */
+    private async createNewFile(session: ChatSession, historyDir: string): Promise<'created'> {
+        const filename = generateFilename(session);
+        const filepath = path.join(historyDir, filename);
+        const content = formatSessionMarkdown(session);
+
+        Logger.debug(`[AutoSave] Creating new file: ${filename}`);
+        await fs.mkdir(historyDir, { recursive: true });
+        await fs.writeFile(filepath, content, 'utf8');
+
+        return 'created';
+    }
+
+    /**
+     * Appends new messages to an existing file if available
+     */
+    private async appendNewMessages(session: ChatSession, existingFile: string): Promise<'updated' | 'skipped'> {
+        const fileMessageCount = await getFileMessageCount(existingFile);
+
+        if (session.messages.length > fileMessageCount) {
+            Logger.info(`[AutoSave] Updating ${path.basename(existingFile)}: ${fileMessageCount} → ${session.messages.length} messages`);
+
+            const newMessages = session.messages.slice(fileMessageCount);
+            const newContent = formatMessages(newMessages, session.source);
+
+            await fs.appendFile(existingFile, '\n' + newContent, 'utf8');
+            return 'updated';
+        }
+
+        return 'skipped';
     }
 
 

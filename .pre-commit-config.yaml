@@ -1,0 +1,25 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+
+  - repo: local
+    hooks:
+      - id: npm-lint
+        name: npm lint
+        entry: npm run lint
+        language: system
+        files: \.ts$
+        pass_filenames: false
+
+      - id: npm-test
+        name: npm test
+        entry: npm test
+        language: system
+        files: \.ts$
+        pass_filenames: false
+        stages: [commit]

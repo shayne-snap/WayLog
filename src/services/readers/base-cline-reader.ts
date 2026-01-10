@@ -182,7 +182,7 @@ export abstract class BaseClineReader implements ChatHistoryReader {
                     const session: ChatSession = {
                         id: folder,
                         title: title,
-                        description: `Task folder (lazy load)`,
+                        description: 'Task folder (lazy load)',
                         timestamp: stats.birthtimeMs, // Stable creation time
                         lastUpdatedAt: stats.mtimeMs,  // Changes when task is updated
                         messages: [], // Lazy load via fetchSessionContent

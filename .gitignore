@@ -24,3 +24,5 @@ release
 *.log
 composer_dump*.json
 prompts.json
+
+# Local Agent Workflows

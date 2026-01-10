@@ -29,7 +29,7 @@ export class CopilotChatReader extends BaseVscdbReader {
      * Copilot often includes verbose internal reasoning like:
      * **Planning todo list**
      * I need to use the todo list tool...
-     * 
+     *
      * This method removes these sections, keeping only the final answer.
      */
     private removeThinkingProcess(text: string): string {
@@ -72,7 +72,7 @@ export class CopilotChatReader extends BaseVscdbReader {
             const workspaces = await this.getWorkspaces();
             return workspaces.length > 0;
         } catch (e) {
-            Logger.error(`[CopilotChatReader] isAvailable failed`, e);
+            Logger.error('[CopilotChatReader] isAvailable failed', e);
             return false;
         }
     }
@@ -221,7 +221,7 @@ export class CopilotChatReader extends BaseVscdbReader {
 
             return sessions;
         } catch (error) {
-            Logger.error(`[CopilotChatReader] Failed to get sessions`, error);
+            Logger.error('[CopilotChatReader] Failed to get sessions', error);
             return [];
         }
     }
