@@ -32,6 +32,7 @@ WayLog 是一个**免费、开源、本地优先的扩展**，它能将你转瞬
 WayLog 开箱即用地支持以下工具：
 
 - **Cursor IDE**（聊天和 Composer / Agent）
+- **Claude Code** (VS Code 内)
 - **GitHub Copilot**（VS Code 扩展）
 - **阿里巴巴通义灵码**（VS Code 扩展）
 - **腾讯云代码助手 CodeBuddy**（VS Code 扩展）
