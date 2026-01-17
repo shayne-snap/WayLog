@@ -7,6 +7,7 @@ import { CopilotChatReader } from './copilot-chat-reader';
 import { ClineReader } from './cline-reader';
 import { RooCodeReader } from './roo-code-reader';
 import { KiloCodeReader } from './kilo-code-reader';
+import { ClaudeReader } from './claude-reader';
 import { CodexReader } from './codex-reader';
 import { Logger } from '../../utils/logger';
 
@@ -16,6 +17,7 @@ export class SyncManager {
 
     private constructor() {
         this.readers = [
+            new ClaudeReader(),
             new CursorReader(),
             new CopilotChatReader(),
             new ClineReader(),
@@ -76,7 +78,12 @@ export class SyncManager {
                 isActive = true;
                 reason = 'Native IDE match';
             }
-            // 2. Check Installed Extension
+            // 2. Claude (CLI/Extension) - Always active if data exists
+            else if (reader.name === 'Claude') {
+                isActive = true;
+                reason = 'Data found (CLI/Extension)';
+            }
+            // 3. Check Installed Extension
             else if (reader.extensionId) {
                 // Check if the extension is installed in the current VS Code / Cursor instance
                 const extension = vscode.extensions.getExtension(reader.extensionId);

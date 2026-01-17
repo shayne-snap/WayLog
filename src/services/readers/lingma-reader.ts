@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs/promises';
 import { Logger } from '../../utils/logger';
-import { ChatHistoryReader, WorkspaceInfo, ChatSession, ChatMessage } from './types';
+import { ChatHistoryReader, WorkspaceInfo, ChatSession } from './types';
 
 // Try to load the module, handle failure gracefully
 let sqlite3: any;
@@ -68,7 +68,7 @@ export class LingmaReader implements ChatHistoryReader {
         }
     }
 
-    public async getSessions(dbPath: string): Promise<ChatSession[]> {
+    public async getSessions(_dbPath: string): Promise<ChatSession[]> {
         const realDbPath = await this.getLingmaDbPathAsync();
         if (!realDbPath) return [];
 

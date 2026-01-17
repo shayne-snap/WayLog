@@ -1,5 +1,5 @@
 import * as path from 'path';
-import * as os from 'os';
+
 import * as fs from 'fs/promises';
 import { BaseVscdbReader } from './base-vscdb-reader';
 import { ChatSession, ChatMessage, WorkspaceInfo } from './types';

@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
+
 import { ChatHistoryReader, ChatSession, ChatMessage, WorkspaceInfo } from './types';
 import { Logger } from '../../utils/logger';
 import { PlatformPaths } from '../../utils/platform-paths';

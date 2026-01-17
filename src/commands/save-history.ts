@@ -5,7 +5,7 @@ import { Logger } from '../utils/logger';
 import { SyncManager } from '../services/readers/sync-manager';
 import { ChatSession } from '../services/readers/types';
 import { findExistingFile, getFileMessageCount, generateFilename } from '../services/waylog-index';
-import { loadSessionContent, formatSessionMarkdown, formatMessages } from '../services/session-utils';
+import { loadSessionContent, formatSessionMarkdown } from '../services/session-utils';
 
 export async function saveHistoryCommand() {
     try {
