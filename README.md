@@ -33,6 +33,7 @@ Stop losing valuable context when you switch IDEs or close a window. WayLog unif
 WayLog connects with the following tools out of the box:
 
 - **Cursor IDE** (Chat & Composer / Agent)
+- **Claude Code** (VS Code InSide)
 - **GitHub Copilot** (VS Code Extension)
 - **Alibaba Lingma** (通义灵码 - VS Code Extension)
 - **Tencent Cloud CodeBuddy** (腾讯云代码助手 - VS Code Extension)
