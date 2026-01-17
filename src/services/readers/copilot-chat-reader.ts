@@ -226,9 +226,3 @@ export class CopilotChatReader extends BaseVscdbReader {
         }
     }
 }
-
-function reqsToAgent(requests: any[]): string {
-    if (!requests || requests.length === 0) return 'Unknown';
-    const agents = new Set(requests.map(r => r.agent?.id).filter(Boolean));
-    return Array.from(agents).join(', ') || 'Copilot/Internal';
-}

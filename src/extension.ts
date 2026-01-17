@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { registerCommands } from './commands';
-import { ConfigurationManager, ConfigKey } from './config/configuration';
+import { ConfigurationManager } from './config/configuration';
 import { WayLogService } from './services/way-log-service';
 import { AutoSaveService } from './services/auto-save';
 import { Logger } from './utils/logger';
@@ -10,7 +10,7 @@ let waylogService: WayLogService;
 let autoSaveService: AutoSaveService;
 
 export async function activate(context: vscode.ExtensionContext) {
-    console.log('[WayLog] Extension activating...');
+
     Logger.info('Activating WayLog extension...');
 
     // Initialize Configuration Manager

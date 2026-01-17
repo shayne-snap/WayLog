@@ -1,5 +1,5 @@
 import { CursorParser, CursorBubble, CursorTab } from '../src/services/readers/cursor-parser';
-import { ChatMessage } from '../src/services/readers/types';
+
 
 describe('CursorParser', () => {
     describe('parseBubbles', () => {

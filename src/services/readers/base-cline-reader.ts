@@ -1,6 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import * as os from 'os';
+
 import { ChatHistoryReader, WorkspaceInfo, ChatSession, ChatMessage } from './types';
 import { Logger } from '../../utils/logger';
 import { PlatformPaths } from '../../utils/platform-paths';

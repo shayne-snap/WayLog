@@ -90,4 +90,18 @@ export class PlatformPaths {
         // Return base path, caller usually appends 'Code/User/globalStorage' or similar
         return base;
     }
+
+    /**
+     * Get Claude Code storage base path (~/.claude)
+     */
+    static getClaudeStoragePath(): string {
+        return path.join(os.homedir(), '.claude');
+    }
+
+    /**
+     * Get Claude Code projects path (~/.claude/projects)
+     */
+    static getClaudeProjectsPath(): string {
+        return path.join(this.getClaudeStoragePath(), 'projects');
+    }
 }

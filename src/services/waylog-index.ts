@@ -4,11 +4,54 @@ import { Logger } from '../utils/logger';
 import { ChatSession } from './readers/types';
 
 /**
+ * Slugify text to create safe filename (matches waylog-cli logic)
+ */
+function slugify(text: string): string {
+    // Take first 50 chars safely (Unicode aware)
+    const truncated = Array.from(text).slice(0, 50).join('');
+
+    // Convert to lowercase alphanumeric with hyphens
+    // Using Unicode property escapes to support generic language characters (including Chinese)
+    // \p{L} matches any Unicode letter, \p{N} matches any Unicode number
+    const slug = truncated
+        .split('')
+        .map(c => /[\p{L}\p{N}]/u.test(c) ? c.toLowerCase() : '-')
+        .join('');
+
+    // Collapse multiple hyphens and trim
+    const cleanSlug = slug
+        .replace(/-+/g, '-')  // Collapse multiple hyphens
+        .replace(/^-+|-+$/g, ''); // Trim leading/trailing hyphens
+
+    return cleanSlug || 'new-chat';
+}
+
+/**
  * Generate filename for a session
- * Uses session creation time + title
+ * For Claude: Uses waylog-cli compatible format ({timestamp}-claude-{slug}.md)
+ * For others: Uses original format ({date}_{time}Z-{title}.md)
  */
 export function generateFilename(session: ChatSession): string {
     const date = new Date(session.timestamp);
+
+    // For Claude sessions, use waylog-cli compatible format
+    if (session.source.toLowerCase() === 'claude') {
+        // Format: YYYY-MM-DD_HH-MM-SSZ
+        const timestamp = date.toISOString()
+            .replace(/T/, '_')
+            .replace(/\.\d{3}Z$/, 'Z')
+            .replace(/:/g, '-');
+
+        // Generate slug from first user message content (matches waylog-cli)
+        const firstUserMessage = session.messages.find(m => m.role === 'user');
+        const slug = firstUserMessage
+            ? slugify(firstUserMessage.content)
+            : session.id || 'new-chat';
+
+        return `${timestamp}-claude-${slug}.md`;
+    }
+
+    // For other providers, keep original format for backward compatibility
     const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
     const timeStr = date.toISOString().split('T')[1].slice(0, 5).replace(':', '-'); // HH-MM
     const sanitizedTitle = session.title.replace(/[^a-zA-Z0-9_\u4e00-\u9fa5]/g, '_').slice(0, 50);
