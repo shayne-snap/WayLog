@@ -9,6 +9,7 @@ import { RooCodeReader } from './roo-code-reader';
 import { KiloCodeReader } from './kilo-code-reader';
 import { ClaudeReader } from './claude-reader';
 import { CodexReader } from './codex-reader';
+import { KiroReader } from './kiro-reader';
 import { Logger } from '../../utils/logger';
 
 export class SyncManager {
@@ -25,7 +26,8 @@ export class SyncManager {
             new KiloCodeReader(),
             new LingmaReader(),
             new CodeBuddyReader(),
-            new CodexReader()
+            new CodexReader(),
+            new KiroReader()
         ];
         Logger.debug(`[SyncManager] Initialized with ${this.readers.length} readers`);
     }
@@ -43,9 +45,11 @@ export class SyncManager {
     public async getAvailableProviders(): Promise<ChatHistoryReader[]> {
         const checks = this.readers.map(async reader => {
             try {
-                if (await reader.isAvailable()) {
-                    return reader;
-                }
+                const available = await Promise.race([
+                    reader.isAvailable(),
+                    new Promise<boolean>(resolve => setTimeout(() => resolve(false), 5000))
+                ]);
+                if (available) return reader;
             } catch (error) {
                 Logger.error(`[SyncManager] Failed to check availability for ${reader.name}`, error);
             }
@@ -78,10 +82,10 @@ export class SyncManager {
                 isActive = true;
                 reason = 'Native IDE match';
             }
-            // 2. Claude (CLI/Extension) - Always active if data exists
-            else if (reader.name === 'Claude') {
+            // 2. Claude/Kiro - Always active if data exists
+            else if (reader.name === 'Claude' || reader.name === 'Kiro') {
                 isActive = true;
-                reason = 'Data found (CLI/Extension)';
+                reason = 'Data found (standalone tool)';
             }
             // 3. Check Installed Extension
             else if (reader.extensionId) {

@@ -75,18 +75,28 @@ export class AutoSaveService {
             const historyDir = await this.prepareHistoryDirectory(workspaceRoot);
             if (!historyDir) return;
 
-            Logger.debug('[AutoSave] Running sync check...');
+            Logger.info('[AutoSave] Running sync check...');
 
             const manager = SyncManager.getInstance();
             const readers = await manager.getActiveProviders();
+            Logger.info(`[AutoSave] Active providers: ${readers.map(r => r.name).join(', ')}`);
 
             let totalUpdated = 0;
             let totalCreated = 0;
 
             for (const reader of readers) {
-                const { updated, created } = await this.processProviderSessions(reader, workspaceRoot, historyDir);
-                totalUpdated += updated;
-                totalCreated += created;
+                try {
+                    const result = await Promise.race([
+                        this.processProviderSessions(reader, workspaceRoot, historyDir),
+                        new Promise<{ updated: number; created: number }>((_, reject) =>
+                            setTimeout(() => reject(new Error(`${reader.name} timed out`)), 30000)
+                        )
+                    ]);
+                    totalUpdated += result.updated;
+                    totalCreated += result.created;
+                } catch (error) {
+                    Logger.error(`[AutoSave] Provider ${reader.name} failed or timed out`, error);
+                }
             }
 
             if (totalUpdated > 0 || totalCreated > 0) {
@@ -143,7 +153,7 @@ export class AutoSaveService {
             );
 
             if (!currentWorkspace) {
-                Logger.debug(`[AutoSave] No ${reader.name} workspace found for ${workspaceRoot}`);
+                Logger.info(`[AutoSave] No ${reader.name} workspace found for ${workspaceRoot}`);
                 return { updated, created };
             }
 
